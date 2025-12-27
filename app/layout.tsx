@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { } from "react"
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/ui/navigation-menu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +25,46 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="zh-cn">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        {/* 悬浮导航栏 */}
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50">
+          <NavigationMenu className="bg-white/80 backdrop-blur-md border border-gray-200 rounded-lg px-6 py-1 shadow-lg dark:bg-black/80 dark:border-gray-800">
+            <NavigationMenuList className="flex space-x-6">
+              <NavigationMenuItem>
+                <NavigationMenuLink 
+                  href="/" 
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-black transition-colors dark:text-gray-300 dark:hover:text-white"
+                >
+                  首页
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink 
+                  href="/blogs" 
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-black transition-colors dark:text-gray-300 dark:hover:text-white"
+                >
+                  博客
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink 
+                  href="/about" 
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-black transition-colors dark:text-gray-300 dark:hover:text-white"
+                >
+                  关于
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+        </div>
+        
+        {/* 主要内容区域，添加顶部间距避免被导航栏遮挡 */}
+        <div className="pt-20">
+          {children}
+        </div>
       </body>
     </html>
   );
