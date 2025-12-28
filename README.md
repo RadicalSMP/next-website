@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next Website
 
-## Getting Started
+这是 **根号的离谱服务器**网站 的仓库。
 
-First, run the development server:
+## 技术栈
+
+### 前端
+
+- **Bun** 包管理器 & Js运行时
+- **Next.js**
+- **Typescript**
+- **TailwindCSS**
+- **shadcn/ui**
+
+### 后端
+
+- **uv** 包管理器 & 虚拟环境管理
+- **Python**
+- **Fastapi**
+- **Sqlalchemy**
+- **PostgreSQL**
+
+### 托管
+
+- **Vercel** 托管 Next.js + Fastapi 项目
+- **supabase** 托管 PostgreSQL 数据库
+
+## 本地运行
+
+### 安装依赖
+
+> 确保你已经安装了 bun 和 uv
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+uv sync
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 运行项目
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+bun run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+这将会同时启动 Next.js 与 Fastapi 服务器在 **3000** 端口上, **Fastapi将被映射到 /api/:path 路径下**。
 
-## Learn More
+参见 [package.json](./package.json) 中的 `scripts` 字段。
 
-To learn more about Next.js, take a look at the following resources:
+## 关于项目
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+目前需要实现的功能:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+* [ ] 页脚展示服务器版权信息、社交链接
+* [ ] 增加用于切换页面的navbar
+* [ ] 嵌入Fastapi
+* [ ] 首页展示服务器风采、服务器状态及服务器最新的博客
+* [ ] 冥人唐功能
+* [ ] 关于页
+* [ ] 注册&登录逻辑，使用**账号密码**
+* [ ] 账号管理
+* [ ] 博客编辑&发布&展示
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+......等待补充完善
