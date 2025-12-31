@@ -25,4 +25,29 @@ export const org = {
     name_cn: "根号的离谱服务器",
     social: social,
     avatar: "/images/rsmp_logo_web.jpg",
-}
+};
+
+export const tools = [
+    {
+        title: "冥人唐",
+        href: "/tools/famous",
+        desc: "展示服内名人",
+    },
+];
+
+export const famous = [
+    {
+        name: "物服",
+        mcid: "bjytxsc",
+        role: "服务器管理 / 服务器联合创始人",
+        tags: ["管理", "运维"],
+        desc: "你服三太阳之一",
+    },
+    {
+        name: "白龙",
+        mcid: "WhiteDragen",
+        role: "服务器管理",
+        tags: ["管理",],
+        desc: "待填写...",
+    },
+]

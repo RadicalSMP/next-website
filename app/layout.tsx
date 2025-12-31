@@ -5,6 +5,7 @@ import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuL
 import { Footer } from "@/components/ui/footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/ui/theme-toggle";
+import { Navbar } from "@/components/ui/navbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,27 +40,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
 
-          {/* 悬浮导航栏 */}
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-            <NavigationMenu className="bg-white/80 backdrop-blur-md border border-gray-200 rounded-lg px-6 py-1 shadow-lg dark:bg-black/80 dark:border-gray-800">
-              <NavigationMenuList className="flex space-x-6">
-                {[
-                  { href: "/", label: "首页" },
-                  { href: "/blogs", label: "博客" },
-                  { href: "/about", label: "关于" }
-                ].map(({ href, label }) => (
-                  <NavigationMenuItem key={href}>
-                    <NavigationMenuLink
-                      href={href}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-black transition-colors dark:text-gray-300 dark:hover:text-white"
-                    >
-                      {label}
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                ))}
-              </NavigationMenuList>
-            </NavigationMenu>
-          </div>
+          {/* 导航栏 */}
+          <Navbar />
 
           {/* 主题切换按钮 - 固定在右上角 */}
           <div className="fixed top-6 right-6 z-50">
