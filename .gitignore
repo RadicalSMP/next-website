@@ -44,4 +44,8 @@ next-env.d.ts
 .venv/
 __pycache__/
 
+# lock files
+*.lock
+
+# ide
 .vscode/
