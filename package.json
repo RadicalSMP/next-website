@@ -5,9 +5,9 @@
   "scripts": {
     "fastapi-dev": "uv run uvicorn api.index:app --reload",
     "next-dev": "next dev",
-    "dev": "concurrently \"bun run fastapi-dev\" \"bun run next-dev\"",
-    "build": "next build",
-    "start": "next start",
+    "dev": "concurrently \"bun run --bun fastapi-dev\" \"bun run --bun next-dev\"",
+    "build": "bun run --bun next build",
+    "start": "concurrently \"bun run --bun next start\" \"uv run uvicorn api.index:app\"",
     "lint": "eslint"
   },
   "dependencies": {
