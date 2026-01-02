@@ -2,7 +2,7 @@
 name = "next-website"
 version = "0.1.0"
 description = "RadicalSMP Website API"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.128.0",
     "pydantic>=2.12.5",
