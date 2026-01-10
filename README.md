@@ -14,10 +14,8 @@
 
 ### 后端
 
+- **Next.js** API 路由
 - **uv** 包管理器 & 虚拟环境管理
-- **Python**
-- **Fastapi**
-- **Sqlalchemy**
 - **PostgreSQL**
 
 ### 托管
@@ -29,11 +27,10 @@
 
 ### 安装依赖
 
-> 确保你已经安装了 bun 和 uv
+> 确保你已经安装了 bun
 
 ```bash
 bun install
-uv sync
 ```
 
 ### 运行项目
@@ -42,17 +39,12 @@ uv sync
 bun run dev
 ```
 
-这将会同时启动 Next.js 与 Fastapi 服务器在 **3000** 端口上, **Fastapi将被映射到 /api/:path 路径下**。
-
-参见 [package.json](./package.json) 中的 `scripts` 字段。
-
 ## 关于项目
 
 目前需要实现的功能:
 
 * [ ] 页脚展示服务器版权信息、社交链接
 * [ ] 增加用于切换页面的navbar
-* [ ] 嵌入Fastapi
 * [ ] 首页展示服务器风采、服务器状态及服务器最新的博客
 * [ ] 冥人唐功能
 * [ ] 关于页

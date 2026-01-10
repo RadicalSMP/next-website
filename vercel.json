@@ -3,10 +3,5 @@
   "buildCommand": "bun run --bun next build",
   "bunVersion": "1.x",
   "cleanUrls": true,
-  "framework": "nextjs",
-  "functions": {
-    "api/index.py": {
-        "maxDuration": 60
-    }
-  }
+  "framework": "nextjs"
 }

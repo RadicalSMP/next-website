@@ -40,11 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# python
-.venv/
-__pycache__/
-.mypy_cache/
-
 # lock files
 *.lock
 
