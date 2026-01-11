@@ -15,12 +15,11 @@
 ### 后端
 
 - **Next.js** API 路由
-- **uv** 包管理器 & 虚拟环境管理
 - **PostgreSQL**
 
 ### 托管
 
-- **Vercel** 托管 Next.js + Fastapi 项目
+- **Vercel** 托管 Next.js 项目
 - **supabase** 托管 PostgreSQL 数据库
 
 ## 本地运行

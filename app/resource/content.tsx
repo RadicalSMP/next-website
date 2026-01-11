@@ -1,6 +1,8 @@
 import { FaGithub, FaQq } from "react-icons/fa";
 import { FaBilibili } from "react-icons/fa6";
 import { RiBloggerLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
+import { FaBalanceScale, FaHeart, FaPeopleCarry } from "react-icons/fa";
+import { LuSparkle } from "react-icons/lu";
 
 const social = [
     {
@@ -26,12 +28,34 @@ export const org = {
     name_cn: "根号的离谱服务器",
     social: social,
     avatar: "/images/rsmp_logo_web.jpg",
+    features: [
+        {
+            icon: LuSparkle,
+            title: "创新",
+            description: "我们倡导不断创新，让每一个富有创造性的想法都能得以实践。",
+        },
+        {
+            icon: FaBalanceScale,
+            title: "公平",
+            description: "我们坚持公平原则，让每一位成员都能获得平等的对待。",
+        },
+        {
+            icon: FaPeopleCarry,
+            title: "共创",
+            description: "我们有着相同的目标，共同为营造这和谐的 Minecraft 社区而努力。",
+        },
+        {
+            icon: FaHeart,
+            title: "真诚",
+            description: "我们彼此坦诚相待，摒弃虚伪。",
+        },
+    ]
 };
 
 export const navbar_routes = [
-    { href: "/", label: "首页" , icon: RiHomeLine},
-    { href: "/blogs", label: "博客", icon: RiBloggerLine},
-    { href: "/about", label: "关于", icon: RiInformationLine},
+    { href: "/", label: "首页", icon: RiHomeLine },
+    { href: "/blogs", label: "博客", icon: RiBloggerLine },
+    { href: "/about", label: "关于", icon: RiInformationLine },
     {
         href: "/tools",
         label: "工具",

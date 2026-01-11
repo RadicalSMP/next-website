@@ -1,55 +1,65 @@
-type TestItem = { data: string; test?: string };
+import { org } from "@/app/resource";
 
-const URL = process.env.NEXT_PUBLIC_VERCEL_URL
-  ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}/api/test`
-  : "http://localhost:3000/api/test";
-
-export default async function About() {
-  let data: TestItem[] = [];
-  let error: string | null = null;
-
-  try {
-    const res = await fetch(URL, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(
-        `HTTP ${res.status} ${res.statusText} - ${text.slice(0, 200)}`
-      );
-    }
-
-    const json = await res.json();
-
-    // Normalize response to an array
-    if (Array.isArray(json)) {
-      data = json;
-    } else if (json && typeof json === "object") {
-      data = [json];
-    } else {
-      data = [];
-    }
-  } catch (err) {
-    error = String(err);
-  }
-
+export default function AboutPage() {
   return (
-    <main>
-      <h1>Msg from FastAPI Backend</h1>
+    <main className="min-h-screen">
+      {/* Hero Section */}
+      <section className="px-6 py-12 md:px-12 lg:px-24 max-w-6xl mx-auto">
+        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight tracking-tight">
+          根服，
+          <br />
+          启动！！！
+        </h1>
+        <p className="mt-6 text-lg text-muted-foreground max-w-2xl">
+          我们正致力于构建一个和谐的 Minecraft 社区。
+        </p>
+      </section>
 
-      {error ? (
-        <p style={{ color: "red" }}>Error fetching backend: {error}</p>
-      ) : data.length === 0 ? (
-        <p>No data</p>
-      ) : (
-        <ul>
-          {data.map((item) => (
-            <li key={item.data}>{item.test ?? item.data}</li>
-          ))}
-        </ul>
-      )}
-      <div>{URL}</div>
+      {/* Hero Image */}
+      <section className="px-6 md:px-12 lg:px-24 max-w-6xl mx-auto">
+        <div className="w-full aspect-[16/9] bg-muted rounded-lg overflow-hidden">
+          <img
+            src="https://github.com/wonder-perfect/radical-website/blob/main/public/images/gallery/horizontal-8.jpg?raw=true"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </section>
+
+      {/* Mission Statement - Dark Section */}
+      <section className="bg-zinc-900 text-white mt-12 px-6 py-16 md:px-12 lg:px-24">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+            标语标语标语，
+            <br />
+            标语标语标语标语标语。
+          </h2>
+          <div className="mt-8 flex justify-end">
+            <a
+              href="#"
+              className="text-white underline underline-offset-4 hover:text-gray-300 transition-colors"
+            >
+              
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="px-6 py-16 md:px-12 lg:px-24 border-t">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {org.features.map((feature) => (
+              <div key={feature.title} className="space-y-4">
+                <feature.icon className="w-8 h-8" strokeWidth={1.5} />
+                <h3 className="text-lg font-semibold">{feature.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
