@@ -1,5 +1,6 @@
 import { FaGithub, FaQq } from "react-icons/fa";
 import { FaBilibili } from "react-icons/fa6";
+import { RiBloggerLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
 
 const social = [
     {
@@ -27,13 +28,23 @@ export const org = {
     avatar: "/images/rsmp_logo_web.jpg",
 };
 
-export const tools = [
+export const navbar_routes = [
+    { href: "/", label: "首页" , icon: RiHomeLine},
+    { href: "/blogs", label: "博客", icon: RiBloggerLine},
+    { href: "/about", label: "关于", icon: RiInformationLine},
     {
-        title: "冥人唐",
-        href: "/tools/famous",
-        desc: "展示服内名人",
+        href: "/tools",
+        label: "工具",
+        icon: RiToolsLine,
+        children: [
+            {
+                href: "/tools/famous",
+                label: "冥人唐",
+                icon: RiUserLine,
+            },
+        ],
     },
-];
+]
 
 export const famous = [
     {

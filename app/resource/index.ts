@@ -1,5 +1,5 @@
 export {
     org,
-    tools,
+    navbar_routes,
     famous,
 } from "./content";

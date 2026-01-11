@@ -1,82 +1,85 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-
-import { useIsMobile } from "@/hooks/use-mobile"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { navbar_routes } from "@/app/resource";
 import {
-    NavigationMenu,
-    NavigationMenuContent,
-    NavigationMenuItem,
-    NavigationMenuLink,
-    NavigationMenuList,
-    NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
+import { cn } from "@/lib/utils";
+import { IconType } from "react-icons";
 
-import { tools } from "@/app/resource"
-
-export function Navbar() {
-    const isMobile = useIsMobile()
-
-    return (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-            <NavigationMenu className="bg-white/80 backdrop-blur-md border border-gray-200 rounded-lg px-6 py-1 shadow-lg dark:bg-black/80 dark:border-gray-800" viewport={ isMobile }>
-                <NavigationMenuList className="flex space-x-6">
-                    {[
-                        { href: "/", label: "首页" },
-                        { href: "/blogs", label: "博客" },
-                        { href: "/about", label: "关于" }
-                    ].map(({ href, label }) => (
-                        <NavigationMenuItem key={href}>
-                            <NavigationMenuLink
-                                href={href}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-black transition-colors dark:text-gray-300 dark:hover:text-white"
-                            >
-                                {label}
-                            </NavigationMenuLink>
-                        </NavigationMenuItem>
-                    ))}
-                    <NavigationMenuItem>
-                        <NavigationMenuTrigger className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-black transition-colors dark:text-gray-300 dark:hover:text-white">
-                            工具箱
-                        </NavigationMenuTrigger>
-                        <NavigationMenuContent>
-                            <ul className="grid gap-2 sm:w-[200px]">
-                                {tools.map((tools) => (
-                                    <ListItem
-                                        key={tools.title}
-                                        title={tools.title}
-                                        href={tools.href}
-                                    >
-                                        {tools.desc}
-                                    </ListItem>
-                                ))}
-                            </ul>
-                        </NavigationMenuContent>
-                    </NavigationMenuItem>
-                </NavigationMenuList>
-            </NavigationMenu>
-        </div>
-
-    )
+interface NavRoute {
+  href: string;
+  label: string;
+  icon: IconType;
+  children?: NavRoute[];
 }
 
-function ListItem({
-  title,
-  children,
-  href,
-  ...props
-}: React.ComponentPropsWithoutRef<"li"> & { href: string }) {
+export function Navbar() {
+  const pathname = usePathname();
+
   return (
-    <li {...props}>
-      <NavigationMenuLink asChild>
-        <Link href={href}>
-          <div className="text-sm leading-none font-medium">{title}</div>
-          <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
-            {children}
-          </p>
-        </Link>
-      </NavigationMenuLink>
-    </li>
-  )
+    <div className="flex items-center justify-center">
+      <NavigationMenu viewport={false} className="rounded-full border bg-background/80 backdrop-blur-sm px-2 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <NavigationMenuList className="gap-0">
+          {navbar_routes.map((route: NavRoute) => (
+            <NavigationMenuItem key={route.href}>
+              {route.children && route.children.length > 0 ? (
+                // 有子菜单的项目
+                <>
+                  <NavigationMenuTrigger
+                    className={cn(
+                      "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                      "hover:bg-accent hover:text-accent-foreground",
+                      "data-[state=open]:bg-accent",
+                      pathname.startsWith(route.href) && "bg-accent"
+                    )}
+                  >
+                    <route.icon className="mr-1.5 size-4" />
+                    {route.label}
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid w-[140px] gap-4">
+                      {route.children.map((child: NavRoute) => (
+                        <li key={child.href}>
+                          <NavigationMenuLink asChild>
+                            <Link
+                              href={child.href}
+                              className="flex-row items-center gap-2"
+                            >
+                              <child.icon className="size-4 text-muted-foreground shrink-0" />
+                              <span>{child.label}</span>
+                            </Link>
+                          </NavigationMenuLink>
+                        </li>
+                      ))}
+                    </ul>
+                  </NavigationMenuContent>
+                </>
+              ) : (
+                // 无子菜单的普通链接
+                <Link
+                  href={route.href}
+                  className={cn(
+                    "inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    pathname === route.href && "bg-accent"
+                  )}
+                >
+                  <route.icon className="mr-1.5 size-4" />
+                  {route.label}
+                </Link>
+              )}
+            </NavigationMenuItem>
+          ))}
+        </NavigationMenuList>
+      </NavigationMenu>
+    </div>
+  );
 }

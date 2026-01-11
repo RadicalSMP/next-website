@@ -41,21 +41,24 @@ export default function RootLayout({
         >
 
           {/* 导航栏 */}
-          <Navbar />
+          <div className="pt-4">
+            <Navbar />
+          </div>
 
           {/* 主题切换按钮 - 固定在右上角 */}
-          <div className="fixed top-6 right-6 z-50">
+          <div className="fixed top-5 right-5 z-50">
             <ModeToggle />
           </div>
 
           {/* 主要内容区域，添加顶部间距避免被导航栏遮挡 */}
-          <div className="pt-20 min-h-screen flex flex-col">
+          <div className="pt-5 min-h-screen flex flex-col">
             <main className="flex-1">
               {children}
             </main>
-            {/* 页脚 */}
-            <Footer />
           </div>
+
+          {/* 页脚 */}
+          <Footer />
 
         </ThemeProvider>
       </body>
