@@ -3,6 +3,8 @@ import { FaBilibili } from "react-icons/fa6";
 import { RiBloggerLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
 import { FaBalanceScale, FaHeart, FaPeopleCarry } from "react-icons/fa";
 import { LuSparkle } from "react-icons/lu";
+import { IconType } from "react-icons";
+
 
 const social = [
     {
@@ -86,3 +88,37 @@ export const famous = [
         desc: "待填写...",
     },
 ]
+
+interface DashboardItem {
+    icon: IconType;
+    title: string;
+    href: string;
+}
+
+interface DashboardSection {
+    title: string;
+    items: DashboardItem[];
+}
+
+export const dashboard_items: Record<string, DashboardSection> = {
+    "user": {
+        title: "用户",
+        items: [
+            {
+                icon: RiUserLine,
+                title: "用户管理",
+                href: "/dashboard/user/manage",
+            },
+        ],
+    },
+    "blog": {
+        title: "博客",
+        items: [
+            {
+                icon: RiBloggerLine,
+                title: "文章管理",
+                href: "/dashboard/blog/manage",
+            },
+        ],
+    },
+}

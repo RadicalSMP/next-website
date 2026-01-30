@@ -11,27 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "./ui/sidebar";
-
-const dashboard_items = {
-    "user": {
-        title: "用户",
-        items: [
-            {
-                title: "用户管理",
-                href: "/dashboard/user/manage",
-            },
-        ],
-    },
-    "blog": {
-        title: "博客",
-        items: [
-            {
-                title: "文章管理",
-                href: "/dashboard/blog/manage",
-            },
-        ],
-    },
-}
+import { dashboard_items } from "@/app/resource/content";
 
 export function DashboardSidebar() {
     return (
@@ -48,15 +28,19 @@ export function DashboardSidebar() {
                         <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
-                                {section.items.map((item, index) => (
-                                    <SidebarMenuItem key={index}>
-                                        <SidebarMenuButton asChild>
-                                            <Link href={item.href}>
-                                                <span>{item.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ))}
+                                {section.items.map((item, index) => {
+                                    const IconComponent = item.icon;
+                                    return (
+                                        <SidebarMenuItem key={index}>
+                                            <SidebarMenuButton asChild>
+                                                <Link href={item.href}>
+                                                    <IconComponent className="size-4" />
+                                                    <span>{item.title}</span>
+                                                </Link>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    );
+                                })}
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>

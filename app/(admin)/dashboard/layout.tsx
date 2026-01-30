@@ -2,8 +2,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Footer } from "@/components/ui/footer";
 import { ModeToggle } from "@/components/ui/theme-toggle";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import "@/app/globals.css";
 
 export default function DashboardRootLayout({
