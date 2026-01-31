@@ -3,14 +3,31 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Footer } from "@/components/ui/footer";
 import { ModeToggle } from "@/components/ui/theme-toggle";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 import "@/app/globals.css";
+import { redirect } from "next/navigation";
 
-export default function DashboardRootLayout({
+export default async function DashboardRootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    // 获取用户的 Session
+    const session = await auth.api.getSession({
+        headers: await headers() // you need to pass the headers object.
+    })
+
+    // 若未登录 跳转到 /sign-in
+    // TODO: 增加 若 role 并非 admin, 跳转回主页
+
+    if (!session) {
+        return redirect("/sign-in")
+    }
+
     return (
+
+        
         <html lang="zh-cn" suppressHydrationWarning>
             <body>
                 <ThemeProvider
