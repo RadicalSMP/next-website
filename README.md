@@ -11,11 +11,12 @@
 - **Typescript**
 - **TailwindCSS**
 - **shadcn/ui**
+- **better-auth** 登录逻辑处理
 
 ### 后端
 
 - **Next.js** API 路由
-- **PostgreSQL**
+- **PostgreSQL** 数据库
 
 ### 托管
 
@@ -52,3 +53,7 @@ bun run dev
 * [ ] 博客编辑&发布&展示
 
 ......等待补充完善
+
+## 许可协议
+
+[Apache-2.0 license](./LICENSE)
