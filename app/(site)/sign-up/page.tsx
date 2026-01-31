@@ -17,10 +17,10 @@ import { Loader2, X } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { RiArrowRightUpBoxLine } from "react-icons/ri";
 
 export default function SignUp() {
-	const [firstName, setFirstName] = useState("");
-	const [lastName, setLastName] = useState("");
+	const [username, setUsername] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -45,36 +45,24 @@ export default function SignUp() {
         <div className="flex justify-center items-center h-screen">
             <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
                 <CardHeader>
-                    <CardTitle className="text-lg md:text-xl">Sign Up</CardTitle>
+                    <CardTitle className="text-lg md:text-xl">注册</CardTitle>
                     <CardDescription className="text-xs md:text-sm">
-                        Enter your information to create an account
+                        填写信息以注册您的账户
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="grid gap-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="first-name">First name</Label>
+                                <Label htmlFor="username">用户名</Label>
                                 <Input
                                     id="first-name"
-                                    placeholder="Max"
+                                    placeholder="Dk_Iw"
                                     required
                                     onChange={(e) => {
-                                        setFirstName(e.target.value);
+                                        setUsername(e.target.value);
                                     }}
-                                    value={firstName}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="last-name">Last name</Label>
-                                <Input
-                                    id="last-name"
-                                    placeholder="Robinson"
-                                    required
-                                    onChange={(e) => {
-                                        setLastName(e.target.value);
-                                    }}
-                                    value={lastName}
+                                    value={username}
                                 />
                             </div>
                         </div>
@@ -83,7 +71,7 @@ export default function SignUp() {
                             <Input
                                 id="email"
                                 type="email"
-                                placeholder="m@example.com"
+                                placeholder="dk_iw@radicalsmp.org"
                                 required
                                 onChange={(e) => {
                                     setEmail(e.target.value);
@@ -92,29 +80,27 @@ export default function SignUp() {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password">密码</Label>
                             <Input
                                 id="password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="new-password"
-                                placeholder="Password"
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">Confirm Password</Label>
+                            <Label htmlFor="password_confirmation">确认密码</Label>
                             <Input
                                 id="password_confirmation"
                                 type="password"
                                 value={passwordConfirmation}
                                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                                 autoComplete="new-password"
-                                placeholder="Confirm Password"
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="image">Profile Image (optional)</Label>
+                            <Label htmlFor="image">头像 (可选)</Label>
                             <div className="flex items-end gap-4">
                                 {imagePreview && (
                                     <div className="relative w-16 h-16 rounded-sm overflow-hidden">
@@ -154,7 +140,7 @@ export default function SignUp() {
                                 await signUp.email({
                                     email,
                                     password,
-                                    name: `${firstName} ${lastName}`,
+                                    name: `${ username }`,
                                     image: image ? await convertImageToBase64(image) : "",
                                     callbackURL: "/dashboard",
                                     fetchOptions: {
@@ -177,8 +163,16 @@ export default function SignUp() {
                             {loading ? (
                                 <Loader2 size={16} className="animate-spin" />
                             ) : (
-                                "Create your account"
+                                "创建账户"
                             )}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                router.push("/sign-in");
+                            }}
+                        >
+                            返回登录 <RiArrowRightUpBoxLine />
                         </Button>
                     </div>
                 </CardContent>

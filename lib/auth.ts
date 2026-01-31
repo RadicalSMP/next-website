@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { Pool } from "pg";
+import { admin } from "better-auth/plugins"
 
 export const auth = betterAuth({
     database: new Pool({
@@ -10,7 +11,7 @@ export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
         async sendResetPassword(data, request) {
-            // Send an email to the user with a link to reset their password
+            // TODO: 补全重置密码逻辑
         },
     },
     socialProviders: {
@@ -21,5 +22,21 @@ export const auth = betterAuth({
     },
     plugins: [
         nextCookies(),
+        admin(),
     ],
+    user: {
+        // 补充的额外字段
+        additionalFields: {
+            mcid: {
+                type: "string[]",
+                required: false,
+                input: false,
+            },
+            qq: {
+                type: "string[]",
+                required: false,
+                input: false,
+            }
+        },
+    },
 })
