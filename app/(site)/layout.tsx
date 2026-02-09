@@ -6,6 +6,7 @@ import { Footer } from "@/components/ui/footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/ui/theme-toggle";
 import { Navbar } from "@/components/ui/navbar";
+import { UserAvatar } from "@/components/user-avatar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,9 +46,14 @@ export default function RootLayout({
             <Navbar />
           </div>
 
-          {/* 主题切换按钮 - 固定在右上角 */}
-          <div className="fixed top-5 right-5 z-50">
+          {/* 主题切换按钮 - 固定在坐上角 */}
+          <div className="fixed top-5 left-5 z-50">
             <ModeToggle />
+          </div>
+
+          {/* 用户头像 & 登录按钮 - 固定在右上角 */}
+          <div className="fixed top-5 right-5 z-50">
+            <UserAvatar />
           </div>
 
           {/* 主要内容区域，添加顶部间距避免被导航栏遮挡 */}

@@ -11,7 +11,7 @@
 - **Typescript**
 - **TailwindCSS**
 - **shadcn/ui**
-- **better-auth** 登录逻辑处理
+
 
 ### 后端
 
@@ -22,6 +22,13 @@
 
 - **Vercel** 托管 Next.js 项目
 - **supabase** 托管 PostgreSQL 数据库
+
+### 身份验证
+
+- **better-auth** 登录逻辑处理
+
+所用插件:
+ - [**admin**](https://www.better-auth.com/docs/plugins/admin) 管理员功能
 
 ## 本地运行
 

@@ -147,3 +147,15 @@
     --sidebar-ring: oklch(0.439 0 0);
   }
 }
+
+/* 隐藏滚动条 */
+/* 对于 Chrome & Edge & Safari */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+/* 对于 Firefox */
+html,
+body {
+  scrollbar-width: none;
+}
