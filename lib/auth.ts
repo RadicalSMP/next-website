@@ -2,16 +2,35 @@ import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { Pool } from "pg";
 import { admin } from "better-auth/plugins"
+import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 
 export const auth = betterAuth({
     database: new Pool({
-        // connection options
         connectionString: process.env.DATABASE_URL,
     }),
+    emailVerification: {
+        sendVerificationEmail: async ({ user, url }) => {
+            await sendVerificationEmail({
+                to: user.email,
+                verifyUrl: url,
+                userName: user.name,
+            });
+        },
+        sendOnSignUp: true,
+        autoSignInAfterVerification: true,
+        expiresIn: 3600,
+    },
     emailAndPassword: {
         enabled: true,
-        async sendResetPassword(data, request) {
-            // TODO: 补全重置密码逻辑
+        requireEmailVerification: true,
+        minPasswordLength: 8,
+        maxPasswordLength: 128,
+        async sendResetPassword({ user, url }) {
+            await sendPasswordResetEmail({
+                to: user.email,
+                resetUrl: url,
+                userName: user.name,
+            });
         },
     },
     socialProviders: {
@@ -24,8 +43,27 @@ export const auth = betterAuth({
         nextCookies(),
         admin(),
     ],
+    rateLimit: {
+        enabled: true,
+        window: 60,
+        max: 10,
+        customRules: {
+            "/api/auth/sign-in/email": {
+                window: 60,
+                max: 5,
+            },
+            "/api/auth/sign-up/email": {
+                window: 60,
+                max: 3,
+            },
+            "/api/auth/forget-password": {
+                window: 300,
+                max: 3,
+            },
+        },
+        storage: "memory",
+    },
     user: {
-        // 补充的额外字段
         additionalFields: {
             mcid: {
                 type: "string[]",
