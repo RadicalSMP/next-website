@@ -2,8 +2,8 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// 发件人地址（Resend 未验证域名时用 onboarding@resend.dev）
-const FROM = "RadicalSMP <onboarding@resend.dev>";
+{/* 现在绑上了 hami.su 的域名, 在将来某个日子买了 radicalsmp.org 的域名后, 将它绑上resend, 然后改掉这个发件邮箱w */}
+const FROM = "BotamiDragen <botamidragen@hami.su>";
 
 export async function sendPasswordResetEmail(params: {
     to: string;
