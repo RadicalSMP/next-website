@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { resetPassword } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -12,6 +12,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function ResetPassword() {
+    return (
+        <Suspense>
+            <ResetPasswordContent />
+        </Suspense>
+    );
+}
+
+function ResetPasswordContent() {
     const [password, setPassword] = useState("");
     const [passwordConfirmation, setPasswordConfirmation] = useState("");
     const [loading, setLoading] = useState(false);
