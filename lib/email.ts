@@ -1,6 +1,12 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+    if (!_resend) {
+        _resend = new Resend(process.env.RESEND_API_KEY);
+    }
+    return _resend;
+}
 
 {/* 现在绑上了 hami.su 的域名, 在将来某个日子买了 radicalsmp.org 的域名后, 将它绑上resend, 然后改掉这个发件邮箱w */}
 const FROM = "BotamiDragen <botamidragen@hami.su>";
@@ -13,7 +19,7 @@ export async function sendPasswordResetEmail(params: {
     const { to, resetUrl, userName } = params;
     const greeting = userName ? `${userName}，你好！` : "你好！";
 
-    await resend.emails.send({
+    await getResend().emails.send({
         from: FROM,
         to,
         subject: "重置您的密码 - RadicalSMP",
@@ -40,7 +46,7 @@ export async function sendVerificationEmail(params: {
     const { to, verifyUrl, userName } = params;
     const greeting = userName ? `${userName}，你好！` : "你好！";
 
-    await resend.emails.send({
+    await getResend().emails.send({
         from: FROM,
         to,
         subject: "验证您的邮箱 - RadicalSMP",
