@@ -19,10 +19,14 @@ export default async function DashboardRootLayout({
     })
 
     // 若未登录 跳转到 /sign-in
-    // TODO: 增加 若 role 并非 admin, 跳转回主页
+    // 若 role 并非 admin, 跳转回主页
 
     if (!session) {
         return redirect("/sign-in")
+    }
+
+    if (session.user.role !== "admin") {
+        return redirect("/")
     }
 
     return (

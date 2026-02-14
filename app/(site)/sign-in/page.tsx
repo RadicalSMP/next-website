@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
-import { Loader2, Key } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { signIn } from "@/lib/auth-client";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function SignIn() {
@@ -15,6 +17,7 @@ export default function SignIn() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const router = useRouter();
 
     return (
         <div className="flex justify-center items-center h-screen">
@@ -79,6 +82,12 @@ export default function SignIn() {
                                         onResponse: () => {
                                             setLoading(false);
                                         },
+                                        onError: (ctx) => {
+                                            toast.error(ctx.error.message);
+                                        },
+                                        onSuccess: () => {
+                                            router.push("/");
+                                        },
                                     },
                                 });
                             }}
@@ -92,6 +101,11 @@ export default function SignIn() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
+                    <p className="text-xs">
+                        <Link href="/forgot-password" className="underline">
+                            忘记密码?
+                        </Link>
+                    </p>
                     <p className="text-xs">
                         没有账号? {" "}
                         <Link href="/sign-up" className="underline">
