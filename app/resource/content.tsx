@@ -1,6 +1,6 @@
 import { FaGithub, FaQq } from "react-icons/fa";
 import { FaBilibili } from "react-icons/fa6";
-import { RiBloggerLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
+import { RiBloggerLine, RiDashboardLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
 import { FaBalanceScale, FaHeart, FaPeopleCarry } from "react-icons/fa";
 import { LuSparkle } from "react-icons/lu";
 import { IconType } from "react-icons";
@@ -101,6 +101,16 @@ interface DashboardSection {
 }
 
 export const dashboard_items: Record<string, DashboardSection> = {
+    "overview": {
+        title: "概览",
+        items: [
+            {
+                icon: RiDashboardLine,
+                title: "仪表盘",
+                href: "/dashboard",
+            },
+        ],
+    },
     "user": {
         title: "用户",
         items: [
