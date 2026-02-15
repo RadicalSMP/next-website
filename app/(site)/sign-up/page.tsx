@@ -11,13 +11,59 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { Progress } from "@/components/ui/progress";
+import { useState, useMemo } from "react";
 import Image from "next/image";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Check, Circle } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { RiArrowRightUpBoxLine } from "react-icons/ri";
+
+/** 密码强度规则 */
+const PASSWORD_RULES = [
+	{ key: "length", label: "至少 8 个字符", test: (pw: string) => pw.length >= 8 },
+	{ key: "uppercase", label: "包含大写字母", test: (pw: string) => /[A-Z]/.test(pw) },
+	{ key: "lowercase", label: "包含小写字母", test: (pw: string) => /[a-z]/.test(pw) },
+	{ key: "number", label: "包含数字", test: (pw: string) => /\d/.test(pw) },
+	{ key: "symbol", label: "包含符号", test: (pw: string) => /[^A-Za-z0-9]/.test(pw) },
+] as const;
+
+/** 计算密码强度（长度合格 + 字符类型满足 ≥2 种） */
+function evaluatePassword(password: string) {
+	const passed = PASSWORD_RULES.map((rule) => ({
+		...rule,
+		met: rule.test(password),
+	}));
+
+	const lengthOk = passed[0].met;
+	// 大写、小写、数字、符号中满足的种类数
+	const categoryCount = passed.slice(1).filter((r) => r.met).length;
+	const categoryOk = categoryCount >= 2;
+	const isValid = lengthOk && categoryOk;
+
+	// 强度百分比：长度占 40%，每种字符类型占 15%
+	let strength = 0;
+	if (lengthOk) strength += 40;
+	strength += Math.min(categoryCount, 4) * 15;
+
+	return { passed, isValid, strength };
+}
+
+/** 强度等级文案 & 颜色 */
+function getStrengthMeta(strength: number) {
+	if (strength <= 0) return { text: "", color: "" };
+	if (strength <= 40) return { text: "弱", color: "text-red-500" };
+	if (strength <= 70) return { text: "中", color: "text-yellow-500" };
+	return { text: "强", color: "text-green-500" };
+}
+
+/** Progress 条颜色类名 */
+function getProgressColor(strength: number) {
+	if (strength <= 40) return "[&>[data-slot=progress-indicator]]:bg-red-500";
+	if (strength <= 70) return "[&>[data-slot=progress-indicator]]:bg-yellow-500";
+	return "[&>[data-slot=progress-indicator]]:bg-green-500";
+}
 
 export default function SignUp() {
 	const [username, setUsername] = useState("");
@@ -28,6 +74,11 @@ export default function SignUp() {
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
+
+	// 密码强度评估
+	const { passed: passwordChecks, isValid: isPasswordValid, strength: passwordStrength } =
+		useMemo(() => evaluatePassword(password), [password]);
+	const strengthMeta = useMemo(() => getStrengthMeta(passwordStrength), [passwordStrength]);
 
 	const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -88,6 +139,53 @@ export default function SignUp() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="new-password"
                             />
+                            {/* 密码强度指示器 */}
+                            {password.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <Progress
+                                            value={passwordStrength}
+                                            className={`h-1.5 flex-1 ${getProgressColor(passwordStrength)}`}
+                                        />
+                                        <span className={`text-xs font-medium ${strengthMeta.color}`}>
+                                            {strengthMeta.text}
+                                        </span>
+                                    </div>
+                                    <ul className="space-y-1">
+                                        {passwordChecks.map((rule) => (
+                                            <li
+                                                key={rule.key}
+                                                className={`flex items-center gap-1.5 text-xs ${
+                                                    rule.met
+                                                        ? "text-green-500"
+                                                        : "text-muted-foreground"
+                                                }`}
+                                            >
+                                                {rule.met ? (
+                                                    <Check className="size-3" />
+                                                ) : (
+                                                    <Circle className="size-3" />
+                                                )}
+                                                {rule.label}
+                                            </li>
+                                        ))}
+                                        <li
+                                            className={`flex items-center gap-1.5 text-xs ${
+                                                passwordChecks.slice(1).filter((r) => r.met).length >= 2
+                                                    ? "text-green-500"
+                                                    : "text-muted-foreground"
+                                            }`}
+                                        >
+                                            {passwordChecks.slice(1).filter((r) => r.met).length >= 2 ? (
+                                                <Check className="size-3" />
+                                            ) : (
+                                                <Circle className="size-3" />
+                                            )}
+                                            以上字符类型至少满足 2 种
+                                        </li>
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="password_confirmation">确认密码</Label>
@@ -98,6 +196,10 @@ export default function SignUp() {
                                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                                 autoComplete="new-password"
                             />
+                            {/* 密码不一致提示 */}
+                            {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
+                                <p className="text-xs text-red-500">两次输入的密码不一致</p>
+                            )}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="image">头像 (可选)</Label>
@@ -135,8 +237,16 @@ export default function SignUp() {
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={loading}
+                            disabled={loading || !isPasswordValid || password !== passwordConfirmation}
                             onClick={async () => {
+                                if (!isPasswordValid) {
+                                    toast.error("密码不满足强度要求");
+                                    return;
+                                }
+                                if (password !== passwordConfirmation) {
+                                    toast.error("两次输入的密码不一致");
+                                    return;
+                                }
                                 await signUp.email({
                                     email,
                                     password,
