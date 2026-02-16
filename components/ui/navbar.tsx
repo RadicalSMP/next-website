@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navbar_routes } from "@/app/resource";
+import { navbar_routes } from "@/app/resource/content";
 import {
   NavigationMenu,
   NavigationMenuContent,

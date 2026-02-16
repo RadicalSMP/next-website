@@ -92,6 +92,7 @@ export const famous = [
 interface DashboardItem {
     icon: IconType;
     title: string;
+    desc: string;
     href: string;
 }
 
@@ -107,6 +108,7 @@ export const dashboard_items: Record<string, DashboardSection> = {
             {
                 icon: RiDashboardLine,
                 title: "仪表盘",
+                desc: "查看网站概览",
                 href: "/dashboard",
             },
         ],
@@ -117,7 +119,14 @@ export const dashboard_items: Record<string, DashboardSection> = {
             {
                 icon: RiUserLine,
                 title: "用户管理",
+                desc: "管理用户信息",
                 href: "/dashboard/user/manage",
+            },
+            {
+                icon: RiCoupon3Line,
+                title: "邀请码管理",
+                desc: "管理用于用户注册的邀请码",
+                href: "/dashboard/invitation-code",
             },
         ],
     },
@@ -127,17 +136,8 @@ export const dashboard_items: Record<string, DashboardSection> = {
             {
                 icon: RiBloggerLine,
                 title: "文章管理",
+                desc: "管理博客文章",
                 href: "/dashboard/blog/manage",
-            },
-        ],
-    },
-    "invitation": {
-        title: "邀请",
-        items: [
-            {
-                icon: RiCoupon3Line,
-                title: "邀请码管理",
-                href: "/dashboard/invitation-code",
             },
         ],
     },

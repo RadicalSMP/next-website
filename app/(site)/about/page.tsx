@@ -1,4 +1,4 @@
-import { org } from "@/app/resource";
+import { org } from "@/app/resource/content";
 
 export default function AboutPage() {
   return (
@@ -38,7 +38,7 @@ export default function AboutPage() {
               href="#"
               className="text-white underline underline-offset-4 hover:text-gray-300 transition-colors"
             >
-              
+
             </a>
           </div>
         </div>

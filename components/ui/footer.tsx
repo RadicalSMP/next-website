@@ -1,5 +1,5 @@
 import { Button } from "./button";
-import { org } from "@/app/resource"
+import { org } from "@/app/resource/content"
 
 export const Footer = () => {
     const currentYear = new Date().getFullYear();

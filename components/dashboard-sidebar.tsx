@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { org } from "@/app/resource";
+import { org } from "@/app/resource/content";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
 } from "./ui/sidebar";
 import { dashboard_items } from "@/app/resource/content";
 import { RiArrowLeftLine } from "react-icons/ri";
@@ -24,7 +24,7 @@ export function DashboardSidebar() {
                     <p className="text-xs text-muted-foreground">管理后台</p>
                 </div>
             </SidebarHeader>
-            
+
             <SidebarContent>
                 {Object.entries(dashboard_items).map(([key, section]) => (
                     <SidebarGroup key={key}>

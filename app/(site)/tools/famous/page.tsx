@@ -1,6 +1,6 @@
 "use client";
 
-import { famous } from "@/app/resource";
+import { famous } from "@/app/resource/content";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
@@ -24,13 +24,13 @@ export default function FameWall() {
                 <h1 className="text-3xl font-bold text-center mb-2">冥人唐</h1>
                 <p className="text-center text-muted-foreground">展示服内名人</p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {famous.map((person, index) => {
                     const isExpanded = expandedCards.has(index);
-                    
+
                     return (
-                        <div 
+                        <div
                             key={index}
                             className="bg-card border border-border rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
                         >
@@ -38,7 +38,7 @@ export default function FameWall() {
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-4">
                                     <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted border border-border flex items-center justify-center">
-                                        <img 
+                                        <img
                                             src={`https://mc-heads.net/avatar/${person.mcid}/64`}
                                             alt={`${person.name} 的头像`}
                                             className="w-full h-full object-cover"
@@ -78,7 +78,7 @@ export default function FameWall() {
                             {/* 标签 */}
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {person.tags.map((tag, tagIndex) => (
-                                    <span 
+                                    <span
                                         key={tagIndex}
                                         className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-xs"
                                     >
