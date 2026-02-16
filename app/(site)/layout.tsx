@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/ui/theme-toggle";
 import { Navbar } from "@/components/ui/navbar";
 import { UserAvatar } from "@/components/user-avatar";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -65,6 +66,9 @@ export default function RootLayout({
 
           {/* 页脚 */}
           <Footer />
+
+          {/* Toast 通知 */}
+          <Toaster richColors position="top-right" />
 
         </ThemeProvider>
       </body>

@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { signIn } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { translateErrorMessage } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -83,7 +84,7 @@ export default function SignIn() {
                                             setLoading(false);
                                         },
                                         onError: (ctx) => {
-                                            toast.error(ctx.error.message);
+                                            toast.error(translateErrorMessage(ctx.error.message));
                                         },
                                         onSuccess: () => {
                                             router.push("/");

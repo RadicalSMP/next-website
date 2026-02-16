@@ -17,6 +17,7 @@ import Image from "next/image";
 import { Loader2, X, Check, Circle, TicketCheck } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { translateErrorMessage } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { RiArrowRightUpBoxLine } from "react-icons/ri";
 
@@ -278,7 +279,7 @@ export default function SignUp() {
                                             setLoading(true);
                                         },
                                         onError: (ctx) => {
-                                            toast.error(ctx.error.message);
+                                            toast.error(translateErrorMessage(ctx.error.message));
                                         },
                                         onSuccess: () => {
                                             router.push("/dashboard");

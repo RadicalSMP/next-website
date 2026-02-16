@@ -8,6 +8,7 @@ import { useState, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { resetPassword } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { translateErrorMessage } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -45,7 +46,7 @@ function ResetPasswordContent() {
                 onRequest: () => setLoading(true),
                 onResponse: () => setLoading(false),
                 onError: (ctx) => {
-                    toast.error(ctx.error.message);
+                    toast.error(translateErrorMessage(ctx.error.message));
                 },
                 onSuccess: () => {
                     toast.success("密码重置成功");

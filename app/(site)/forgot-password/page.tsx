@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { requestPasswordReset } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { translateErrorMessage } from "@/lib/utils";
 import Link from "next/link";
 
 export default function ForgotPassword() {
@@ -23,7 +24,7 @@ export default function ForgotPassword() {
                 onRequest: () => setLoading(true),
                 onResponse: () => setLoading(false),
                 onError: (ctx) => {
-                    toast.error(ctx.error.message);
+                    toast.error(translateErrorMessage(ctx.error.message));
                 },
                 onSuccess: () => {
                     setSent(true);

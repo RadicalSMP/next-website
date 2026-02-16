@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import { redirect } from "next/navigation";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -75,6 +76,7 @@ export default async function DashboardRootLayout({
                     </SidebarProvider>
 
                 </ThemeProvider>
+                <Toaster richColors position="top-right" />
             </body>
         </html>
     )
