@@ -31,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="zh-cn" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         {/* 明暗主题自适应 */}
         <ThemeProvider
