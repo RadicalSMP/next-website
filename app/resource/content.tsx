@@ -1,6 +1,6 @@
 import { FaGithub, FaQq } from "react-icons/fa";
 import { FaBilibili } from "react-icons/fa6";
-import { RiBloggerLine, RiDashboardLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
+import { RiBloggerLine, RiCoupon3Line, RiDashboardLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
 import { FaBalanceScale, FaHeart, FaPeopleCarry } from "react-icons/fa";
 import { LuSparkle } from "react-icons/lu";
 import { IconType } from "react-icons";
@@ -128,6 +128,16 @@ export const dashboard_items: Record<string, DashboardSection> = {
                 icon: RiBloggerLine,
                 title: "文章管理",
                 href: "/dashboard/blog/manage",
+            },
+        ],
+    },
+    "invitation": {
+        title: "邀请",
+        items: [
+            {
+                icon: RiCoupon3Line,
+                title: "邀请码管理",
+                href: "/dashboard/invitation-code",
             },
         ],
     },

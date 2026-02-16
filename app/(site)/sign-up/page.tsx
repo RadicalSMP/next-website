@@ -2,19 +2,19 @@
 
 import { Button } from "@/components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import { Loader2, X, Check, Circle } from "lucide-react";
+import { Loader2, X, Check, Circle, TicketCheck } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -22,77 +22,78 @@ import { RiArrowRightUpBoxLine } from "react-icons/ri";
 
 /** 密码强度规则 */
 const PASSWORD_RULES = [
-	{ key: "length", label: "至少 8 个字符", test: (pw: string) => pw.length >= 8 },
-	{ key: "uppercase", label: "包含大写字母", test: (pw: string) => /[A-Z]/.test(pw) },
-	{ key: "lowercase", label: "包含小写字母", test: (pw: string) => /[a-z]/.test(pw) },
-	{ key: "number", label: "包含数字", test: (pw: string) => /\d/.test(pw) },
-	{ key: "symbol", label: "包含符号", test: (pw: string) => /[^A-Za-z0-9]/.test(pw) },
+    { key: "length", label: "至少 8 个字符", test: (pw: string) => pw.length >= 8 },
+    { key: "uppercase", label: "包含大写字母", test: (pw: string) => /[A-Z]/.test(pw) },
+    { key: "lowercase", label: "包含小写字母", test: (pw: string) => /[a-z]/.test(pw) },
+    { key: "number", label: "包含数字", test: (pw: string) => /\d/.test(pw) },
+    { key: "symbol", label: "包含符号", test: (pw: string) => /[^A-Za-z0-9]/.test(pw) },
 ] as const;
 
 /** 计算密码强度（长度合格 + 字符类型满足 ≥2 种） */
 function evaluatePassword(password: string) {
-	const passed = PASSWORD_RULES.map((rule) => ({
-		...rule,
-		met: rule.test(password),
-	}));
+    const passed = PASSWORD_RULES.map((rule) => ({
+        ...rule,
+        met: rule.test(password),
+    }));
 
-	const lengthOk = passed[0].met;
-	// 大写、小写、数字、符号中满足的种类数
-	const categoryCount = passed.slice(1).filter((r) => r.met).length;
-	const categoryOk = categoryCount >= 2;
-	const isValid = lengthOk && categoryOk;
+    const lengthOk = passed[0].met;
+    // 大写、小写、数字、符号中满足的种类数
+    const categoryCount = passed.slice(1).filter((r) => r.met).length;
+    const categoryOk = categoryCount >= 2;
+    const isValid = lengthOk && categoryOk;
 
-	// 强度百分比：长度占 40%，每种字符类型占 15%
-	let strength = 0;
-	if (lengthOk) strength += 40;
-	strength += Math.min(categoryCount, 4) * 15;
+    // 强度百分比：长度占 40%，每种字符类型占 15%
+    let strength = 0;
+    if (lengthOk) strength += 40;
+    strength += Math.min(categoryCount, 4) * 15;
 
-	return { passed, isValid, strength };
+    return { passed, isValid, strength };
 }
 
 /** 强度等级文案 & 颜色 */
 function getStrengthMeta(strength: number) {
-	if (strength <= 0) return { text: "", color: "" };
-	if (strength <= 40) return { text: "弱", color: "text-red-500" };
-	if (strength <= 70) return { text: "中", color: "text-yellow-500" };
-	return { text: "强", color: "text-green-500" };
+    if (strength <= 0) return { text: "", color: "" };
+    if (strength <= 40) return { text: "弱", color: "text-red-500" };
+    if (strength <= 70) return { text: "中", color: "text-yellow-500" };
+    return { text: "强", color: "text-green-500" };
 }
 
 /** Progress 条颜色类名 */
 function getProgressColor(strength: number) {
-	if (strength <= 40) return "[&>[data-slot=progress-indicator]]:bg-red-500";
-	if (strength <= 70) return "[&>[data-slot=progress-indicator]]:bg-yellow-500";
-	return "[&>[data-slot=progress-indicator]]:bg-green-500";
+    if (strength <= 40) return "[&>[data-slot=progress-indicator]]:bg-red-500";
+    if (strength <= 70) return "[&>[data-slot=progress-indicator]]:bg-yellow-500";
+    return "[&>[data-slot=progress-indicator]]:bg-green-500";
 }
 
 export default function SignUp() {
-	const [username, setUsername] = useState("");
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [passwordConfirmation, setPasswordConfirmation] = useState("");
-	const [image, setImage] = useState<File | null>(null);
-	const [imagePreview, setImagePreview] = useState<string | null>(null);
-	const router = useRouter();
-	const [loading, setLoading] = useState(false);
+    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [passwordConfirmation, setPasswordConfirmation] = useState("");
+    const [invitationCode, setInvitationCode] = useState("");
+    const [image, setImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
 
-	// 密码强度评估
-	const { passed: passwordChecks, isValid: isPasswordValid, strength: passwordStrength } =
-		useMemo(() => evaluatePassword(password), [password]);
-	const strengthMeta = useMemo(() => getStrengthMeta(passwordStrength), [passwordStrength]);
+    // 密码强度评估
+    const { passed: passwordChecks, isValid: isPasswordValid, strength: passwordStrength } =
+        useMemo(() => evaluatePassword(password), [password]);
+    const strengthMeta = useMemo(() => getStrengthMeta(passwordStrength), [passwordStrength]);
 
-	const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (file) {
-			setImage(file);
-			const reader = new FileReader();
-			reader.onloadend = () => {
-				setImagePreview(reader.result as string);
-			};
-			reader.readAsDataURL(file);
-		}
-	};
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
-	return (
+    return (
         <div className="flex justify-center items-center h-screen">
             <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
                 <CardHeader>
@@ -155,11 +156,10 @@ export default function SignUp() {
                                         {passwordChecks.map((rule) => (
                                             <li
                                                 key={rule.key}
-                                                className={`flex items-center gap-1.5 text-xs ${
-                                                    rule.met
+                                                className={`flex items-center gap-1.5 text-xs ${rule.met
                                                         ? "text-green-500"
                                                         : "text-muted-foreground"
-                                                }`}
+                                                    }`}
                                             >
                                                 {rule.met ? (
                                                     <Check className="size-3" />
@@ -170,11 +170,10 @@ export default function SignUp() {
                                             </li>
                                         ))}
                                         <li
-                                            className={`flex items-center gap-1.5 text-xs ${
-                                                passwordChecks.slice(1).filter((r) => r.met).length >= 2
+                                            className={`flex items-center gap-1.5 text-xs ${passwordChecks.slice(1).filter((r) => r.met).length >= 2
                                                     ? "text-green-500"
                                                     : "text-muted-foreground"
-                                            }`}
+                                                }`}
                                         >
                                             {passwordChecks.slice(1).filter((r) => r.met).length >= 2 ? (
                                                 <Check className="size-3" />
@@ -234,10 +233,25 @@ export default function SignUp() {
                                 </div>
                             </div>
                         </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="invitationCode">
+                                <span className="flex items-center gap-1.5">
+                                    <TicketCheck className="size-4" />
+                                    邀请码
+                                </span>
+                            </Label>
+                            <Input
+                                id="invitationCode"
+                                placeholder="请输入邀请码"
+                                required
+                                value={invitationCode}
+                                onChange={(e) => setInvitationCode(e.target.value)}
+                            />
+                        </div>
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={loading || !isPasswordValid || password !== passwordConfirmation}
+                            disabled={loading || !isPasswordValid || password !== passwordConfirmation || !invitationCode.trim()}
                             onClick={async () => {
                                 if (!isPasswordValid) {
                                     toast.error("密码不满足强度要求");
@@ -250,10 +264,13 @@ export default function SignUp() {
                                 await signUp.email({
                                     email,
                                     password,
-                                    name: `${ username }`,
+                                    name: `${username}`,
                                     image: image ? await convertImageToBase64(image) : "",
                                     callbackURL: "/dashboard",
                                     fetchOptions: {
+                                        body: {
+                                            invitationCode: invitationCode.trim(),
+                                        },
                                         onResponse: () => {
                                             setLoading(false);
                                         },
@@ -288,14 +305,14 @@ export default function SignUp() {
                 </CardContent>
             </Card>
         </div>
-	);
+    );
 }
 
 async function convertImageToBase64(file: File): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const reader = new FileReader();
-		reader.onloadend = () => resolve(reader.result as string);
-		reader.onerror = reject;
-		reader.readAsDataURL(file);
-	});
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }

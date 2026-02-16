@@ -1,13 +1,16 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
+import { createAuthMiddleware, APIError } from "better-auth/api";
 import { Pool } from "pg";
 import { admin } from "better-auth/plugins"
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+});
+
 export const auth = betterAuth({
-    database: new Pool({
-        connectionString: process.env.DATABASE_URL,
-    }),
+    database: pool,
     emailVerification: {
         sendVerificationEmail: async ({ user, url }) => {
             await sendVerificationEmail({
@@ -76,5 +79,114 @@ export const auth = betterAuth({
                 input: false,
             }
         },
+    },
+    hooks: {
+        before: createAuthMiddleware(async (ctx) => {
+            if (ctx.path !== "/sign-up/email") {
+                return;
+            }
+
+            const invitationCode = (ctx.body as Record<string, unknown>)?.invitationCode;
+            if (!invitationCode || typeof invitationCode !== "string") {
+                throw new APIError("BAD_REQUEST", {
+                    message: "请输入邀请码",
+                });
+            }
+
+            const result = await pool.query(
+                `SELECT * FROM "invitation_code" WHERE "code" = $1`,
+                [invitationCode],
+            );
+
+            if (result.rows.length === 0) {
+                throw new APIError("BAD_REQUEST", {
+                    message: "邀请码无效",
+                });
+            }
+
+            const code = result.rows[0];
+
+            // 检查过期
+            if (code.expiresAt && new Date(code.expiresAt) < new Date()) {
+                throw new APIError("BAD_REQUEST", {
+                    message: "邀请码已过期",
+                });
+            }
+
+            // 检查使用次数
+            if (code.uses >= code.maxUses) {
+                throw new APIError("BAD_REQUEST", {
+                    message: "邀请码已达到最大使用次数",
+                });
+            }
+
+            // 检查邮箱白名单
+            const email = (ctx.body as Record<string, unknown>)?.email as string;
+            if (code.allowedEmails && code.allowedEmails.length > 0) {
+                const allowed = (code.allowedEmails as string[]).some(
+                    (e: string) => e.toLowerCase() === email.toLowerCase(),
+                );
+                if (!allowed) {
+                    throw new APIError("BAD_REQUEST", {
+                        message: "该邀请码不允许此邮箱注册",
+                    });
+                }
+            }
+        }),
+        after: createAuthMiddleware(async (ctx) => {
+            if (ctx.path !== "/sign-up/email") {
+                return;
+            }
+
+            // 注册成功后，记录使用并更新计数
+            const newResponse = ctx.context.returned as Response;
+            if (!newResponse || newResponse.status !== 200) {
+                return;
+            }
+
+            const invitationCode = (ctx.body as Record<string, unknown>)?.invitationCode as string;
+            if (!invitationCode) {
+                return;
+            }
+
+            // 从响应中获取用户信息
+            const cloned = newResponse.clone();
+            let userId: string | undefined;
+            let userEmail: string | undefined;
+            try {
+                const data = await cloned.json();
+                userId = data?.user?.id;
+                userEmail = data?.user?.email;
+            } catch {
+                return;
+            }
+
+            if (!userId || !userEmail) {
+                return;
+            }
+
+            // 获取邀请码 ID
+            const codeResult = await pool.query(
+                `SELECT "id" FROM "invitation_code" WHERE "code" = $1`,
+                [invitationCode],
+            );
+
+            if (codeResult.rows.length === 0) {
+                return;
+            }
+
+            const codeId = codeResult.rows[0].id;
+
+            // 插入使用记录 + 更新计数
+            const usageId = crypto.randomUUID();
+            await pool.query(
+                `INSERT INTO "invitation_code_usage" ("id", "codeId", "userId", "email") VALUES ($1, $2, $3, $4)`,
+                [usageId, codeId, userId, userEmail],
+            );
+            await pool.query(
+                `UPDATE "invitation_code" SET "uses" = "uses" + 1 WHERE "id" = $1`,
+                [codeId],
+            );
+        }),
     },
 })
