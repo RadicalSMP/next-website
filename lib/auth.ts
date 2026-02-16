@@ -139,29 +139,24 @@ export const auth = betterAuth({
             }
 
             // 注册成功后，记录使用并更新计数
-            const newResponse = ctx.context.returned as Response;
-            if (!newResponse || newResponse.status !== 200) {
+            // ctx.context.returned 是端点返回的普通对象 { token, user }，不是 Response
+            const returned = ctx.context.returned as
+                | { token: string | null; user?: { id?: string; email?: string } }
+                | undefined;
+
+            if (!returned || !returned.user) {
+                return;
+            }
+
+            const userId = returned.user.id;
+            const userEmail = returned.user.email;
+
+            if (!userId || !userEmail) {
                 return;
             }
 
             const invitationCode = (ctx.body as Record<string, unknown>)?.invitationCode as string;
             if (!invitationCode) {
-                return;
-            }
-
-            // 从响应中获取用户信息
-            const cloned = newResponse.clone();
-            let userId: string | undefined;
-            let userEmail: string | undefined;
-            try {
-                const data = await cloned.json();
-                userId = data?.user?.id;
-                userEmail = data?.user?.email;
-            } catch {
-                return;
-            }
-
-            if (!userId || !userEmail) {
                 return;
             }
 
