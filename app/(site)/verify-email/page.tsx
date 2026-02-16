@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { Loader2, MailCheck, RefreshCw } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -30,7 +30,7 @@ function getRemaining(): number {
     }
 }
 
-export default function VerifyEmail() {
+function VerifyEmailContent() {
     const searchParams = useSearchParams();
     const email = searchParams.get("email");
     const router = useRouter();
@@ -76,61 +76,69 @@ export default function VerifyEmail() {
     };
 
     return (
-        <div className="flex justify-center items-center h-screen">
-            <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
-                <CardHeader className="text-center">
-                    <div className="flex justify-center mb-2">
-                        <MailCheck className="size-12 text-muted-foreground" />
+        <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
+            <CardHeader className="text-center">
+                <div className="flex justify-center mb-2">
+                    <MailCheck className="size-12 text-muted-foreground" />
+                </div>
+                <CardTitle className="text-lg md:text-xl">验证您的邮箱</CardTitle>
+                <CardDescription className="text-xs md:text-sm">
+                    我们已向{" "}
+                    {email ? (
+                        <span className="font-medium text-foreground">{email}</span>
+                    ) : (
+                        "您的邮箱"
+                    )}{" "}
+                    发送了一封验证邮件
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-4">
+                    <div className="text-sm text-muted-foreground space-y-2">
+                        <p>请前往您的邮箱，点击邮件中的验证链接以完成注册。</p>
+                        <p>如果没有收到邮件，请检查垃圾邮件文件夹。</p>
                     </div>
-                    <CardTitle className="text-lg md:text-xl">验证您的邮箱</CardTitle>
-                    <CardDescription className="text-xs md:text-sm">
-                        我们已向{" "}
-                        {email ? (
-                            <span className="font-medium text-foreground">{email}</span>
+
+                    <Button
+                        variant="outline"
+                        className="w-full"
+                        disabled={resending || countdown > 0}
+                        onClick={handleResend}
+                    >
+                        {resending ? (
+                            <Loader2 size={16} className="animate-spin" />
                         ) : (
-                            "您的邮箱"
-                        )}{" "}
-                        发送了一封验证邮件
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid gap-4">
-                        <div className="text-sm text-muted-foreground space-y-2">
-                            <p>请前往您的邮箱，点击邮件中的验证链接以完成注册。</p>
-                            <p>如果没有收到邮件，请检查垃圾邮件文件夹。</p>
-                        </div>
+                            <>
+                                <RefreshCw className="size-4 mr-1.5" />
+                                {countdown > 0
+                                    ? `重新发送 (${countdown}s)`
+                                    : "重新发送验证邮件"}
+                            </>
+                        )}
+                    </Button>
 
-                        <Button
-                            variant="outline"
-                            className="w-full"
-                            disabled={resending || countdown > 0}
-                            onClick={handleResend}
-                        >
-                            {resending ? (
-                                <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                                <>
-                                    <RefreshCw className="size-4 mr-1.5" />
-                                    {countdown > 0
-                                        ? `重新发送 (${countdown}s)`
-                                        : "重新发送验证邮件"}
-                                </>
-                            )}
-                        </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => router.push("/sign-in")}
+                    >
+                        返回登录
+                    </Button>
 
-                        <Button
-                            variant="outline"
-                            onClick={() => router.push("/sign-in")}
-                        >
-                            返回登录
-                        </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                        验证链接将在 1 小时后过期
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
-                        <p className="text-xs text-center text-muted-foreground">
-                            验证链接将在 1 小时后过期
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
+export default function VerifyEmail() {
+    return (
+        <div className="flex justify-center items-center h-screen">
+            <Suspense>
+                <VerifyEmailContent />
+            </Suspense>
         </div>
     );
 }
