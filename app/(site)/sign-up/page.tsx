@@ -282,7 +282,8 @@ export default function SignUp() {
                                             toast.error(translateErrorMessage(ctx.error.message));
                                         },
                                         onSuccess: () => {
-                                            router.push("/dashboard");
+                                            toast.success("注册成功！请查看邮箱完成验证");
+                                            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
                                         },
                                     },
                                 });

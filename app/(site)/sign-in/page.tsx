@@ -84,7 +84,19 @@ export default function SignIn() {
                                             setLoading(false);
                                         },
                                         onError: (ctx) => {
-                                            toast.error(translateErrorMessage(ctx.error.message));
+                                            if (ctx.error.message === "Email not verified") {
+                                                toast.error("邮箱未验证", {
+                                                    description: "请查看邮箱中的验证链接",
+                                                    action: {
+                                                        label: "前往验证",
+                                                        onClick: () => {
+                                                            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+                                                        },
+                                                    },
+                                                });
+                                            } else {
+                                                toast.error(translateErrorMessage(ctx.error.message));
+                                            }
                                         },
                                         onSuccess: () => {
                                             router.push("/");
