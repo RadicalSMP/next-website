@@ -1,16 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
     Dialog,
     DialogContent,
@@ -27,6 +21,14 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
@@ -37,9 +39,6 @@ import {
     ChevronDown,
     ChevronRight,
     TicketCheck,
-    Users,
-    Clock,
-    Mail,
 } from "lucide-react";
 
 /* ─── 类型定义 ─────────────────────────────────────────────── */
@@ -126,159 +125,207 @@ export default function InvitationCodePage() {
             <Separator />
 
             {/* 邀请码列表 */}
-            {loading ? (
-                <div className="flex justify-center py-12">
-                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                </div>
-            ) : codes.length === 0 ? (
-                <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                        <TicketCheck className="size-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground">暂无邀请码</p>
-                        <p className="text-muted-foreground text-sm">
-                            点击右上角按钮创建第一个邀请码
-                        </p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="grid gap-4">
-                    {codes.map((code) => {
-                        const expired = isExpired(code.expiresAt);
-                        const usedUp = isUsedUp(code);
-                        const isExpanded = expandedId === code.id;
-
-                        return (
-                            <Card
-                                key={code.id}
-                                className={
-                                    expired || usedUp
-                                        ? "opacity-60"
-                                        : ""
-                                }
-                            >
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <CardTitle className="text-lg font-mono tracking-wider">
-                                                {code.code}
-                                            </CardTitle>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="size-7"
-                                                            onClick={() => copyToClipboard(code.code)}
-                                                        >
-                                                            <Copy className="size-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>复制邀请码</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                            {expired && (
-                                                <span className="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full">
-                                                    已过期
-                                                </span>
-                                            )}
-                                            {usedUp && !expired && (
-                                                <span className="text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-0.5 rounded-full">
-                                                    已用完
-                                                </span>
-                                            )}
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="text-destructive hover:text-destructive"
-                                            onClick={() => handleDelete(code.id)}
-                                        >
-                                            <Trash2 className="size-4" />
-                                        </Button>
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-10" />
+                            <TableHead>邀请码</TableHead>
+                            <TableHead>状态</TableHead>
+                            <TableHead>使用量</TableHead>
+                            <TableHead>限定邮箱</TableHead>
+                            <TableHead>创建时间</TableHead>
+                            <TableHead>过期时间</TableHead>
+                            <TableHead className="w-10" />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {loading ? (
+                            <TableRow>
+                                <TableCell colSpan={8} className="py-8">
+                                    <div className="flex justify-center">
+                                        <Loader2 className="size-6 animate-spin text-muted-foreground" />
                                     </div>
-                                    <CardDescription className="flex flex-wrap gap-4 pt-1">
-                                        <span className="flex items-center gap-1">
-                                            <Users className="size-3.5" />
-                                            使用 {code.uses}/{code.maxUses}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <Clock className="size-3.5" />
-                                            创建于 {new Date(code.createdAt).toLocaleDateString("zh-CN")}
-                                        </span>
-                                        {code.expiresAt && (
-                                            <span className="flex items-center gap-1">
-                                                <Clock className="size-3.5" />
-                                                过期于 {new Date(code.expiresAt).toLocaleDateString("zh-CN")}
-                                            </span>
-                                        )}
-                                        {code.allowedEmails && code.allowedEmails.length > 0 && (
-                                            <span className="flex items-center gap-1">
-                                                <Mail className="size-3.5" />
-                                                限定 {code.allowedEmails.length} 个邮箱
-                                            </span>
-                                        )}
-                                    </CardDescription>
-                                </CardHeader>
+                                </TableCell>
+                            </TableRow>
+                        ) : codes.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={8} className="py-12">
+                                    <div className="flex flex-col items-center justify-center text-center">
+                                        <TicketCheck className="size-12 text-muted-foreground mb-4" />
+                                        <p className="text-muted-foreground">暂无邀请码</p>
+                                        <p className="text-muted-foreground text-sm">
+                                            点击右上角按钮创建第一个邀请码
+                                        </p>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            codes.map((code) => {
+                                const expired = isExpired(code.expiresAt);
+                                const usedUp = isUsedUp(code);
+                                const isExpanded = expandedId === code.id;
+                                const hasUsages = code.usages.length > 0;
 
-                                {/* 邮箱白名单 */}
-                                {code.allowedEmails && code.allowedEmails.length > 0 && (
-                                    <CardContent className="pt-0 pb-3">
-                                        <p className="text-xs text-muted-foreground mb-1">允许的邮箱：</p>
-                                        <div className="flex flex-wrap gap-1">
-                                            {code.allowedEmails.map((email) => (
-                                                <span
-                                                    key={email}
-                                                    className="text-xs bg-muted px-2 py-0.5 rounded font-mono"
-                                                >
-                                                    {email}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </CardContent>
-                                )}
-
-                                {/* 使用记录折叠 */}
-                                {code.usages.length > 0 && (
-                                    <CardContent className="pt-0">
-                                        <button
-                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                                            onClick={() =>
-                                                setExpandedId(isExpanded ? null : code.id)
-                                            }
+                                return (
+                                    <Fragment key={code.id}>
+                                        <TableRow
+                                            className={expired || usedUp ? "opacity-60" : ""}
                                         >
-                                            {isExpanded ? (
-                                                <ChevronDown className="size-3.5" />
-                                            ) : (
-                                                <ChevronRight className="size-3.5" />
-                                            )}
-                                            使用记录 ({code.usages.length})
-                                        </button>
-                                        {isExpanded && (
-                                            <div className="mt-2 space-y-1">
-                                                {code.usages.map((usage) => (
-                                                    <div
-                                                        key={usage.id}
-                                                        className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/50 rounded px-3 py-2"
+                                            {/* 展开按钮 */}
+                                            <TableCell>
+                                                {hasUsages ? (
+                                                    <button
+                                                        className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                                                        onClick={() =>
+                                                            setExpandedId(isExpanded ? null : code.id)
+                                                        }
                                                     >
-                                                        <span className="font-medium text-foreground">
-                                                            {usage.userName || "未知用户"}
-                                                        </span>
-                                                        <span className="font-mono">{usage.email}</span>
-                                                        <span className="ml-auto">
-                                                            {new Date(usage.usedAt).toLocaleString("zh-CN")}
-                                                        </span>
+                                                        {isExpanded ? (
+                                                            <ChevronDown className="size-4" />
+                                                        ) : (
+                                                            <ChevronRight className="size-4" />
+                                                        )}
+                                                    </button>
+                                                ) : null}
+                                            </TableCell>
+
+                                            {/* 邀请码 */}
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono font-medium tracking-wider">
+                                                        {code.code}
+                                                    </span>
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-7"
+                                                                    onClick={() => copyToClipboard(code.code)}
+                                                                >
+                                                                    <Copy className="size-3.5" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>复制邀请码</TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </div>
+                                            </TableCell>
+
+                                            {/* 状态 */}
+                                            <TableCell>
+                                                {expired ? (
+                                                    <Badge variant="destructive">已过期</Badge>
+                                                ) : usedUp ? (
+                                                    <Badge variant="secondary">已用完</Badge>
+                                                ) : (
+                                                    <Badge variant="default">可用</Badge>
+                                                )}
+                                            </TableCell>
+
+                                            {/* 使用量 */}
+                                            <TableCell>
+                                                {code.uses}/{code.maxUses}
+                                            </TableCell>
+
+                                            {/* 限定邮箱 */}
+                                            <TableCell>
+                                                {code.allowedEmails && code.allowedEmails.length > 0 ? (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger className="cursor-default">
+                                                                <Badge variant="outline">
+                                                                    {code.allowedEmails.length} 个邮箱
+                                                                </Badge>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                side="bottom"
+                                                                className="max-w-xs"
+                                                            >
+                                                                <div className="space-y-1">
+                                                                    {code.allowedEmails.map((email) => (
+                                                                        <div
+                                                                            key={email}
+                                                                            className="font-mono text-xs"
+                                                                        >
+                                                                            {email}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                ) : (
+                                                    <span className="text-muted-foreground">不限</span>
+                                                )}
+                                            </TableCell>
+
+                                            {/* 创建时间 */}
+                                            <TableCell className="text-muted-foreground">
+                                                {new Date(code.createdAt).toLocaleDateString("zh-CN")}
+                                            </TableCell>
+
+                                            {/* 过期时间 */}
+                                            <TableCell className="text-muted-foreground">
+                                                {code.expiresAt
+                                                    ? new Date(code.expiresAt).toLocaleDateString("zh-CN")
+                                                    : "永不"}
+                                            </TableCell>
+
+                                            {/* 操作 */}
+                                            <TableCell>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-8 text-destructive hover:text-destructive"
+                                                    onClick={() => handleDelete(code.id)}
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+
+                                        {/* 展开的使用记录 */}
+                                        {isExpanded && hasUsages && (
+                                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                                <TableCell colSpan={8} className="p-0">
+                                                    <div className="px-6 py-3">
+                                                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                                                            使用记录 ({code.usages.length})
+                                                        </p>
+                                                        <div className="space-y-1">
+                                                            {code.usages.map((usage) => (
+                                                                <div
+                                                                    key={usage.id}
+                                                                    className="flex items-center gap-3 text-xs text-muted-foreground bg-background rounded px-3 py-2"
+                                                                >
+                                                                    <span className="font-medium text-foreground">
+                                                                        {usage.userName || "未知用户"}
+                                                                    </span>
+                                                                    <span className="font-mono">
+                                                                        {usage.email}
+                                                                    </span>
+                                                                    <span className="ml-auto">
+                                                                        {new Date(usage.usedAt).toLocaleString(
+                                                                            "zh-CN",
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </TableCell>
+                                            </TableRow>
                                         )}
-                                    </CardContent>
-                                )}
-                            </Card>
-                        );
-                    })}
-                </div>
-            )}
+                                    </Fragment>
+                                );
+                            })
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
         </div>
     );
 }

@@ -23,6 +23,7 @@ import {
     RiMoreLine, RiShieldLine, RiUserLine, RiForbidLine,
     RiCheckLine, RiDeleteBinLine, RiSearchLine, RiRefreshLine,
 } from "react-icons/ri";
+import { Loader2 } from "lucide-react";
 
 // ─── 类型 ────────────────────────────────────────────────────
 interface User {
@@ -112,30 +113,85 @@ export default function UserManagePage() {
 
         setLoading(true);
         try {
-            const { data, error } = await authClient.admin.listUsers({
-                query: {
-                    limit: PAGE_SIZE,
-                    offset: page * PAGE_SIZE,
-                    ...(committedQuery ? { searchValue: committedQuery, searchField: "email" as const } : {}),
-                    sortBy: "createdAt" as const,
-                    sortDirection: "desc" as const,
-                },
-            });
-            if (error) {
-                console.error("获取用户列表失败:", error);
-                return;
-            }
-            if (data) {
-                const userList = (data.users as User[]) || [];
-                const userTotal = data.total || 0;
-                setUsers(userList);
-                setTotal(userTotal);
-                // 写入缓存
+            if (committedQuery) {
+                // 同时按邮箱和用户名搜索，合并去重
+                const [emailRes, nameRes] = await Promise.all([
+                    authClient.admin.listUsers({
+                        query: {
+                            limit: PAGE_SIZE * 2, // 多取一些以覆盖去重后的数量
+                            offset: 0,
+                            searchValue: committedQuery,
+                            searchField: "email" as const,
+                            searchOperator: "contains" as const,
+                            sortBy: "createdAt" as const,
+                            sortDirection: "desc" as const,
+                        },
+                    }),
+                    authClient.admin.listUsers({
+                        query: {
+                            limit: PAGE_SIZE * 2,
+                            offset: 0,
+                            searchValue: committedQuery,
+                            searchField: "name" as const,
+                            searchOperator: "contains" as const,
+                            sortBy: "createdAt" as const,
+                            sortDirection: "desc" as const,
+                        },
+                    }),
+                ]);
+
+                const emailUsers = ((emailRes.data?.users as User[]) || []);
+                const nameUsers = ((nameRes.data?.users as User[]) || []);
+
+                // 合并去重
+                const seen = new Set<string>();
+                const merged: User[] = [];
+                for (const u of [...emailUsers, ...nameUsers]) {
+                    if (!seen.has(u.id)) {
+                        seen.add(u.id);
+                        merged.push(u);
+                    }
+                }
+
+                // 按创建时间降序排序
+                merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+                const mergedTotal = merged.length;
+                const paged = merged.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+                setUsers(paged);
+                setTotal(mergedTotal);
+
                 cacheRef.current.set(key, {
-                    users: userList,
-                    total: userTotal,
+                    users: paged,
+                    total: mergedTotal,
                     timestamp: Date.now(),
                 });
+            } else {
+                // 无搜索词：正常分页查询
+                const { data, error } = await authClient.admin.listUsers({
+                    query: {
+                        limit: PAGE_SIZE,
+                        offset: page * PAGE_SIZE,
+                        sortBy: "createdAt" as const,
+                        sortDirection: "desc" as const,
+                    },
+                });
+                if (error) {
+                    console.error("获取用户列表失败:", error);
+                    return;
+                }
+                if (data) {
+                    const userList = (data.users as User[]) || [];
+                    const userTotal = data.total || 0;
+                    setUsers(userList);
+                    setTotal(userTotal);
+                    cacheRef.current.set(key, {
+                        users: userList,
+                        total: userTotal,
+                        timestamp: Date.now(),
+                    });
+                }
             }
         } catch (err) {
             console.error("获取用户列表失败:", err);
@@ -242,7 +298,7 @@ export default function UserManagePage() {
                 <div className="relative flex-1 max-w-sm">
                     <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                     <Input
-                        placeholder="按邮箱搜索..."
+                        placeholder="搜索用户名或邮箱..."
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         className="pl-9"
@@ -277,8 +333,10 @@ export default function UserManagePage() {
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                    加载中...
+                                <TableCell colSpan={6} className="py-8">
+                                    <div className="flex justify-center">
+                                        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ) : users.length === 0 ? (
