@@ -59,7 +59,7 @@ export default async function DashboardHome() {
                             </CardHeader>
                             <CardContent>
                                 <CardDescription>
-                                    管理博客文章（即将上线）
+                                    管理博客文章
                                 </CardDescription>
                             </CardContent>
                         </Card>
