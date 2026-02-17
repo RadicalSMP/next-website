@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BlogTableOfContents } from "@/components/blog-toc";
 
+export const dynamic = "force-dynamic";
+
 interface BlogPost {
     id: string;
     title: string;
