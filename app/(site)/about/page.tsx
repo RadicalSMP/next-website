@@ -1,4 +1,5 @@
 import { org } from "@/app/resource/content";
+import Image from "next/image";
 
 export default function AboutPage() {
   return (
@@ -17,10 +18,12 @@ export default function AboutPage() {
 
       {/* Hero Image */}
       <section className="px-6 md:px-12 lg:px-24 max-w-6xl mx-auto">
-        <div className="w-full aspect-[16/9] bg-muted rounded-lg overflow-hidden">
-          <img
+        <div className="relative w-full aspect-[16/9] bg-muted rounded-lg overflow-hidden">
+          <Image
             src="https://github.com/wonder-perfect/radical-website/blob/main/public/images/gallery/horizontal-8.jpg?raw=true"
-            className="w-full h-full object-cover"
+            alt="RadicalSMP 社区画廊"
+            fill
+            className="object-cover"
           />
         </div>
       </section>

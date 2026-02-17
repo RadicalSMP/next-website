@@ -4,6 +4,7 @@ import { famous } from "@/app/resource/content";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 
 export default function FameWall() {
     const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
@@ -38,19 +39,13 @@ export default function FameWall() {
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-4">
                                     <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted border border-border flex items-center justify-center">
-                                        <img
+                                        <Image
                                             src={`https://mc-heads.net/avatar/${person.mcid}/64`}
                                             alt={`${person.name} 的头像`}
+                                            width={64}
+                                            height={64}
                                             className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                // 如果头像加载失败，显示备用头像
-                                                const target = e.target as HTMLImageElement;
-                                                target.style.display = 'none';
-                                                const parent = target.parentElement;
-                                                if (parent) {
-                                                    parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center"><span class="text-white font-bold text-xl">${person.name.charAt(0)}</span></div>`;
-                                                }
-                                            }}
+                                            unoptimized
                                         />
                                     </div>
                                     <div className="flex-1">

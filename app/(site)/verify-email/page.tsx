@@ -39,7 +39,12 @@ function VerifyEmailContent() {
 
     // 页面挂载时从 localStorage 恢复倒计时
     useEffect(() => {
-        setCountdown(getRemaining());
+        const remaining = getRemaining();
+        if (remaining > 0) {
+            requestAnimationFrame(() => {
+                setCountdown(remaining);
+            });
+        }
     }, []);
 
     // 每秒更新倒计时
