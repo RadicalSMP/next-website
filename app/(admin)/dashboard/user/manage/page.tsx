@@ -365,6 +365,9 @@ export default function UserManagePage() {
                                         ) : (
                                             <Badge variant="outline">正常</Badge>
                                         )}
+                                        {!user.emailVerified ? (
+                                            <Badge variant="outline">邮箱未验证</Badge>
+                                        ) : (null)}
                                     </TableCell>
                                     <TableCell>{formatDate(user.createdAt)}</TableCell>
                                     <TableCell>
