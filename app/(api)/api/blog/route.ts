@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
+import { invalidateBlogCache } from "@/lib/blog-cache";
 
 // ─── GET /api/blog — 获取文章列表 ──────────────────────────
 export async function GET(request: NextRequest) {
@@ -75,6 +76,8 @@ export async function POST(request: NextRequest) {
          RETURNING id, slug`,
         [title.trim(), slug, content || "", excerpt || null, cover_image || null, postStatus, session.user.id, publishedAt],
     );
+
+    invalidateBlogCache();
 
     return NextResponse.json({ post: result.rows[0] }, { status: 201 });
 }

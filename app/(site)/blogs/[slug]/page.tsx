@@ -1,38 +1,19 @@
-import { pool } from "@/lib/db";
+import { getPublishedPostBySlug, getPostMetadataBySlug } from "@/lib/blog-cache";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BlogTableOfContents } from "@/components/blog-toc";
-
-export const dynamic = "force-dynamic";
-
-interface BlogPost {
-    id: string;
-    title: string;
-    slug: string;
-    content: string;
-    excerpt: string | null;
-    cover_image: string | null;
-    published_at: string;
-    created_at: string;
-    author_name: string | null;
-    author_image: string | null;
-}
 
 // ─── SEO 元数据 ──────────────────────────────────────────
 export async function generateMetadata(
     { params }: { params: Promise<{ slug: string }> },
 ): Promise<Metadata> {
     const { slug } = await params;
-    const result = await pool.query(
-        `SELECT title, excerpt FROM blog_posts WHERE slug = $1 AND status = 'published'`,
-        [slug],
-    );
+    const post = await getPostMetadataBySlug(slug);
 
-    if (result.rows.length === 0) {
+    if (!post) {
         return { title: "文章不存在 - RadicalSMP" };
     }
 
-    const post = result.rows[0];
     return {
         title: `${post.title} - RadicalSMP 博客`,
         description: post.excerpt || post.title,
@@ -49,20 +30,11 @@ export default async function BlogPostPage(
     { params }: { params: Promise<{ slug: string }> },
 ) {
     const { slug } = await params;
+    const post = await getPublishedPostBySlug(slug);
 
-    const result = await pool.query(
-        `SELECT bp.*, u.name AS author_name, u.image AS author_image
-         FROM blog_posts bp
-         LEFT JOIN "user" u ON bp.author_id = u.id
-         WHERE bp.slug = $1 AND bp.status = 'published'`,
-        [slug],
-    );
-
-    if (result.rows.length === 0) {
+    if (!post) {
         notFound();
     }
-
-    const post: BlogPost = result.rows[0];
 
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString("zh-CN", {

@@ -1,39 +1,15 @@
-import { pool } from "@/lib/db";
+import { getPublishedPosts } from "@/lib/blog-cache";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
     title: "博客 - RadicalSMP",
     description: "RadicalSMP 社区博客",
 };
 
-interface BlogPost {
-    id: string;
-    title: string;
-    slug: string;
-    excerpt: string | null;
-    cover_image: string | null;
-    published_at: string;
-    author_name: string | null;
-}
-
 export default async function BlogsPage() {
-    const result = await pool.query(
-        `SELECT bp.id, bp.title, bp.slug, bp.excerpt, bp.cover_image, bp.published_at,
-                u.name AS author_name
-         FROM blog_posts bp
-         LEFT JOIN "user" u ON bp.author_id = u.id
-         WHERE bp.status = 'published'
-         ORDER BY bp.published_at DESC
-         LIMIT 20`,
-    );
-
-    const posts: BlogPost[] = result.rows;
+    const posts = await getPublishedPosts();
 
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString("zh-CN", {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
+import { invalidateBlogCache } from "@/lib/blog-cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -91,6 +92,8 @@ export async function PUT(
         return NextResponse.json({ error: "文章不存在" }, { status: 404 });
     }
 
+    invalidateBlogCache();
+
     return NextResponse.json({ post: result.rows[0] });
 }
 
@@ -114,6 +117,8 @@ export async function DELETE(
     if (result.rows.length === 0) {
         return NextResponse.json({ error: "文章不存在" }, { status: 404 });
     }
+
+    invalidateBlogCache();
 
     return NextResponse.json({ success: true });
 }
