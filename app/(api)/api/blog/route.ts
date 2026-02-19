@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
-import { invalidateBlogCache } from "@/lib/blog-cache";
+import { invalidateBlogCache, getAdminBlogPosts } from "@/lib/blog-cache";
 
 // ─── GET /api/blog — 获取文章列表 ──────────────────────────
 export async function GET(request: NextRequest) {
@@ -10,29 +10,22 @@ export async function GET(request: NextRequest) {
     const page = Math.max(0, parseInt(searchParams.get("page") || "0"));
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10")));
     const status = searchParams.get("status"); // draft | published | null(全部)
-    const offset = page * limit;
 
     // 公开接口只返回已发布文章；管理员可查看全部
     const session = await auth.api.getSession({ headers: await headers() }).catch(() => null);
     const isAdmin = session?.user && (session.user as Record<string, unknown>).role === "admin";
 
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-    let paramIdx = 1;
-
-    if (!isAdmin) {
-        // 非管理员只能看已发布
-        conditions.push(`status = 'published'`);
-    } else if (status && ["draft", "published"].includes(status)) {
-        conditions.push(`status = $${paramIdx++}`);
-        params.push(status);
+    if (isAdmin) {
+        // 管理员：使用服务端缓存
+        const data = await getAdminBlogPosts(page, limit, status);
+        return NextResponse.json(data);
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    // 非管理员：只返回已发布文章（无缓存，公开页面使用独立缓存路径）
+    const offset = page * limit;
 
     const countResult = await pool.query(
-        `SELECT COUNT(*) FROM blog_posts ${where}`,
-        params,
+        `SELECT COUNT(*) FROM blog_posts WHERE status = 'published'`,
     );
     const total = parseInt(countResult.rows[0].count);
 
@@ -42,10 +35,10 @@ export async function GET(request: NextRequest) {
                 u.name AS author_name, u.image AS author_image
          FROM blog_posts bp
          LEFT JOIN "user" u ON bp.author_id = u.id
-         ${where}
+         WHERE status = 'published'
          ORDER BY bp.created_at DESC
-         LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
-        [...params, limit, offset],
+         LIMIT $1 OFFSET $2`,
+        [limit, offset],
     );
 
     return NextResponse.json({ posts: result.rows, total });

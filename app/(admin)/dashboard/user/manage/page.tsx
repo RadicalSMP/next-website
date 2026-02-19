@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { authClient } from "@/lib/auth-client";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -48,13 +47,6 @@ const BAN_DURATIONS = [
 ];
 
 const PAGE_SIZE = 10;
-const CACHE_TTL = 30_000; // 缓存有效期 30 秒
-
-interface CacheEntry {
-    users: User[];
-    total: number;
-    timestamp: number;
-}
 
 // ─── 主组件 ─────────────────────────────────────────────────
 export default function UserManagePage() {
@@ -65,8 +57,6 @@ export default function UserManagePage() {
     const [committedQuery, setCommittedQuery] = useState(""); // 已提交的搜索词（仅提交时更新）
     const [loading, setLoading] = useState(true);
 
-    // 缓存：key = "page:query"
-    const cacheRef = useRef<Map<string, CacheEntry>>(new Map());
     // 请求去重：记录正在进行的请求 key
     const inflightRef = useRef<Set<string>>(new Set());
 
@@ -85,133 +75,52 @@ export default function UserManagePage() {
     // 操作加载状态
     const [actionLoading, setActionLoading] = useState(false);
 
-    // ─── 缓存工具 ────────────────────────────────────────────
-    const getCacheKey = useCallback((p: number, q: string) => `${p}:${q}`, []);
-
-    const invalidateCache = useCallback(() => {
-        cacheRef.current.clear();
-    }, []);
-
-    // ─── 获取用户列表 ────────────────────────────────────────
-    const fetchUsers = useCallback(async (options?: { skipCache?: boolean }) => {
-        const key = getCacheKey(page, committedQuery);
-
-        // 检查缓存
-        if (!options?.skipCache) {
-            const cached = cacheRef.current.get(key);
-            if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-                setUsers(cached.users);
-                setTotal(cached.total);
-                setLoading(false);
-                return;
-            }
-        }
+    // ─── 获取用户列表（通过服务端缓存 API） ─────────────────
+    const fetchUsers = useCallback(async () => {
+        const key = `${page}:${committedQuery}`;
 
         // 去重：跳过同一 key 的重复请求（React StrictMode 会触发两次 effect）
-        if (inflightRef.current.has(key) && !options?.skipCache) return;
+        if (inflightRef.current.has(key)) return;
         inflightRef.current.add(key);
 
         setLoading(true);
         try {
-            if (committedQuery) {
-                // 同时按邮箱和用户名搜索，合并去重
-                const [emailRes, nameRes] = await Promise.all([
-                    authClient.admin.listUsers({
-                        query: {
-                            limit: PAGE_SIZE * 2, // 多取一些以覆盖去重后的数量
-                            offset: 0,
-                            searchValue: committedQuery,
-                            searchField: "email" as const,
-                            searchOperator: "contains" as const,
-                            sortBy: "createdAt" as const,
-                            sortDirection: "desc" as const,
-                        },
-                    }),
-                    authClient.admin.listUsers({
-                        query: {
-                            limit: PAGE_SIZE * 2,
-                            offset: 0,
-                            searchValue: committedQuery,
-                            searchField: "name" as const,
-                            searchOperator: "contains" as const,
-                            sortBy: "createdAt" as const,
-                            sortDirection: "desc" as const,
-                        },
-                    }),
-                ]);
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: PAGE_SIZE.toString(),
+            });
+            if (committedQuery) params.set("search", committedQuery);
 
-                const emailUsers = ((emailRes.data?.users as User[]) || []);
-                const nameUsers = ((nameRes.data?.users as User[]) || []);
-
-                // 合并去重
-                const seen = new Set<string>();
-                const merged: User[] = [];
-                for (const u of [...emailUsers, ...nameUsers]) {
-                    if (!seen.has(u.id)) {
-                        seen.add(u.id);
-                        merged.push(u);
-                    }
-                }
-
-                // 按创建时间降序排序
-                merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-                const mergedTotal = merged.length;
-                const paged = merged.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-                setUsers(paged);
-                setTotal(mergedTotal);
-
-                cacheRef.current.set(key, {
-                    users: paged,
-                    total: mergedTotal,
-                    timestamp: Date.now(),
-                });
-            } else {
-                // 无搜索词：正常分页查询
-                const { data, error } = await authClient.admin.listUsers({
-                    query: {
-                        limit: PAGE_SIZE,
-                        offset: page * PAGE_SIZE,
-                        sortBy: "createdAt" as const,
-                        sortDirection: "desc" as const,
-                    },
-                });
-                if (error) {
-                    console.error("获取用户列表失败:", error);
-                    return;
-                }
-                if (data) {
-                    const userList = (data.users as User[]) || [];
-                    const userTotal = data.total || 0;
-                    setUsers(userList);
-                    setTotal(userTotal);
-                    cacheRef.current.set(key, {
-                        users: userList,
-                        total: userTotal,
-                        timestamp: Date.now(),
-                    });
-                }
+            const res = await fetch(`/api/users?${params}`);
+            if (!res.ok) {
+                console.error("获取用户列表失败:", res.status);
+                return;
             }
+            const data = await res.json();
+            setUsers(data.users || []);
+            setTotal(data.total || 0);
         } catch (err) {
             console.error("获取用户列表失败:", err);
         } finally {
             inflightRef.current.delete(key);
             setLoading(false);
         }
-    }, [page, committedQuery, getCacheKey]);
+    }, [page, committedQuery]);
 
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
 
-    // ─── 操作方法 ────────────────────────────────────────────
+    // ─── 操作方法（通过服务端 API，自动触发缓存失效） ────────
     const handleSetRole = async (userId: string, role: "admin" | "user") => {
         setActionLoading(true);
         try {
-            await authClient.admin.setRole({ userId, role });
-            invalidateCache();
-            await fetchUsers({ skipCache: true });
+            await fetch(`/api/users/${userId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "setRole", role }),
+            });
+            await fetchUsers();
         } catch (err) {
             console.error("设置角色失败:", err);
         } finally {
@@ -222,15 +131,18 @@ export default function UserManagePage() {
     const handleBan = async () => {
         setActionLoading(true);
         try {
-            await authClient.admin.banUser({
-                userId: banUserId,
-                banReason: banReason || undefined,
-                ...(banDuration > 0 ? { banExpiresIn: banDuration } : {}),
+            await fetch(`/api/users/${banUserId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "ban",
+                    banReason: banReason || undefined,
+                    ...(banDuration > 0 ? { banExpiresIn: banDuration } : {}),
+                }),
             });
             setBanDialogOpen(false);
             setBanReason("");
-            invalidateCache();
-            await fetchUsers({ skipCache: true });
+            await fetchUsers();
         } catch (err) {
             console.error("封禁用户失败:", err);
         } finally {
@@ -241,9 +153,12 @@ export default function UserManagePage() {
     const handleUnban = async (userId: string) => {
         setActionLoading(true);
         try {
-            await authClient.admin.unbanUser({ userId });
-            invalidateCache();
-            await fetchUsers({ skipCache: true });
+            await fetch(`/api/users/${userId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "unban" }),
+            });
+            await fetchUsers();
         } catch (err) {
             console.error("解封用户失败:", err);
         } finally {
@@ -254,10 +169,9 @@ export default function UserManagePage() {
     const handleDelete = async () => {
         setActionLoading(true);
         try {
-            await authClient.admin.removeUser({ userId: deleteUserId });
+            await fetch(`/api/users/${deleteUserId}`, { method: "DELETE" });
             setDeleteDialogOpen(false);
-            invalidateCache();
-            await fetchUsers({ skipCache: true });
+            await fetchUsers();
         } catch (err) {
             console.error("删除用户失败:", err);
         } finally {
