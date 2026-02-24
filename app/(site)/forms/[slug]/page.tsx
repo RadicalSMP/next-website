@@ -12,8 +12,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, FileText } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -285,46 +285,49 @@ export default function FormFillPage() {
 
     return (
         <div className="container max-w-2xl mx-auto py-12 px-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl">{form.title}</CardTitle>
-                    {form.description && (
-                        <CardDescription className="text-base">
-                            {form.description}
-                        </CardDescription>
-                    )}
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {form.fields.map((field) => (
-                        <div key={field.key} className="grid gap-2">
-                            {field.type !== "checkbox" && (
-                                <Label htmlFor={`field-${field.key}`}>
-                                    {field.label}
-                                    {field.required && (
-                                        <span className="text-destructive ml-1">*</span>
-                                    )}
-                                </Label>
-                            )}
-                            {renderField(field)}
-                        </div>
-                    ))}
+            {/* 标题区 */}
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold">{form.title}</h1>
+                {form.description && (
+                    <p className="text-muted-foreground text-base mt-2">
+                        {form.description}
+                    </p>
+                )}
+            </div>
 
-                    <div className="pt-4">
-                        <Button
-                            className="w-full"
-                            size="lg"
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                        >
-                            {submitting ? (
-                                <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                                "提交"
-                            )}
-                        </Button>
+            <Separator className="mb-8" />
+
+            {/* 字段区 */}
+            <div className="space-y-6">
+                {form.fields.map((field) => (
+                    <div key={field.key} className="grid gap-2">
+                        {field.type !== "checkbox" && (
+                            <Label htmlFor={`field-${field.key}`}>
+                                {field.label}
+                                {field.required && (
+                                    <span className="text-destructive ml-1">*</span>
+                                )}
+                            </Label>
+                        )}
+                        {renderField(field)}
                     </div>
-                </CardContent>
-            </Card>
+                ))}
+
+                <div className="pt-4">
+                    <Button
+                        className="w-full"
+                        size="lg"
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                    >
+                        {submitting ? (
+                            <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                            "提交"
+                        )}
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 }

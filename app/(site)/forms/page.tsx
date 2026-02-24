@@ -1,5 +1,4 @@
 import { getActiveForms } from "@/lib/form-cache";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Lock, Users } from "lucide-react";
 import Link from "next/link";
@@ -35,7 +34,7 @@ export default async function FormsListPage() {
     };
 
     return (
-        <div className="container max-w-4xl mx-auto py-12 px-4">
+        <div className="container max-w-2xl mx-auto py-12 px-4">
             {/* 页面标题 */}
             <div className="text-center mb-10">
                 <h1 className="text-4xl font-bold tracking-tight mb-3">表单</h1>
@@ -51,29 +50,27 @@ export default async function FormsListPage() {
                     <p className="text-muted-foreground text-lg">暂无可用表单</p>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="divide-y">
                     {forms.map((form) => (
-                        <Link key={form.id} href={`/forms/${form.slug}`}>
-                            <Card className="transition-colors hover:bg-muted/50 cursor-pointer">
-                                <CardHeader className="pb-2">
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-xl">{form.title}</CardTitle>
-                                        {visibilityText(form.visibility) && (
-                                            <Badge variant="outline" className="gap-1">
-                                                {visibilityIcon(form.visibility)}
-                                                {visibilityText(form.visibility)}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </CardHeader>
-                                {form.description && (
-                                    <CardContent>
-                                        <p className="text-muted-foreground">
-                                            {form.description}
-                                        </p>
-                                    </CardContent>
+                        <Link
+                            key={form.id}
+                            href={`/forms/${form.slug}`}
+                            className="block py-5 transition-colors hover:bg-muted/40 -mx-4 px-4 rounded-md"
+                        >
+                            <div className="flex items-center justify-between mb-1">
+                                <h2 className="text-xl font-semibold">{form.title}</h2>
+                                {visibilityText(form.visibility) && (
+                                    <Badge variant="outline" className="gap-1">
+                                        {visibilityIcon(form.visibility)}
+                                        {visibilityText(form.visibility)}
+                                    </Badge>
                                 )}
-                            </Card>
+                            </div>
+                            {form.description && (
+                                <p className="text-muted-foreground">
+                                    {form.description}
+                                </p>
+                            )}
                         </Link>
                     ))}
                 </div>
