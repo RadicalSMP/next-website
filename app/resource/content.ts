@@ -1,6 +1,6 @@
 import { FaGithub, FaQq } from "react-icons/fa";
 import { FaBilibili } from "react-icons/fa6";
-import { RiBloggerLine, RiCoupon3Line, RiDashboardLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
+import { RiBloggerLine, RiCoupon3Line, RiDashboardLine, RiFileListLine, RiHomeLine, RiInformationLine, RiToolsLine, RiUserLine } from "react-icons/ri";
 import { FaBalanceScale, FaHeart, FaPeopleCarry } from "react-icons/fa";
 import { LuSparkle } from "react-icons/lu";
 import { IconType } from "react-icons";
@@ -57,6 +57,7 @@ export const org = {
 export const navbar_routes = [
     { href: "/", label: "首页", icon: RiHomeLine },
     { href: "/blogs", label: "博客", icon: RiBloggerLine },
+    { href: "/forms", label: "表单", icon: RiFileListLine },
     { href: "/about", label: "关于", icon: RiInformationLine },
     {
         href: "/tools",
@@ -138,6 +139,17 @@ export const dashboard_items: Record<string, DashboardSection> = {
                 title: "文章管理",
                 desc: "管理博客文章",
                 href: "/dashboard/blog/manage",
+            },
+        ],
+    },
+    "forms": {
+        title: "表单",
+        items: [
+            {
+                icon: RiFileListLine,
+                title: "表单管理",
+                desc: "创建和管理自定义表单",
+                href: "/dashboard/forms",
             },
         ],
     },
