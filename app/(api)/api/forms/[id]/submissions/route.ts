@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
 import { getFormSubmissions, invalidateSubmissionCache } from "@/lib/form-cache";
+import { invalidateReviewCache } from "@/lib/review-cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -122,5 +123,141 @@ export async function POST(
 
     invalidateSubmissionCache();
 
+    // ─── 自动评分（入服申请表单） ─────────────────────────
+    if (form.slug === "join-application") {
+        try {
+            await autoScoreSubmission(
+                result.rows[0].id,
+                data,
+                fields,
+                typeof duration === "number" ? Math.round(duration) : null,
+                userAgent,
+            );
+            invalidateReviewCache();
+        } catch (err) {
+            console.error("自动评分失败:", err);
+            // 不阻断提交流程
+        }
+    }
+
     return NextResponse.json({ submission: result.rows[0] }, { status: 201 });
+}
+
+// ─── 自动评分逻辑 ─────────────────────────────────────────
+
+/**
+ * 判断 UA 是否为常见浏览器
+ */
+function isNormalBrowserUA(ua: string | null): boolean {
+    if (!ua || ua.trim().length === 0) return false;
+    // 常见浏览器标识
+    const browserPatterns = [
+        /Mozilla\/.*AppleWebKit/i,      // Chrome, Safari, Edge, Opera
+        /Mozilla\/.*Gecko.*Firefox/i,    // Firefox
+        /Mozilla\/.*Trident/i,           // IE
+        /Opera\//i,
+        /OPR\//i,
+    ];
+    // 排除明显的非浏览器 UA
+    const botPatterns = [
+        /bot/i, /crawler/i, /spider/i, /curl/i, /wget/i, /httpie/i,
+        /postman/i, /insomnia/i, /python-requests/i, /axios/i, /node-fetch/i,
+        /go-http-client/i, /java\//i, /okhttp/i,
+    ];
+    const isBot = botPatterns.some((p) => p.test(ua));
+    if (isBot) return false;
+    return browserPatterns.some((p) => p.test(ua));
+}
+
+/**
+ * 对入服申请提交自动计算基础分和客观题分
+ */
+async function autoScoreSubmission(
+    submissionId: string,
+    data: Record<string, unknown>,
+    formFields: Array<{ key: string; label: string; type: string; options?: string[] }>,
+    duration: number | null,
+    userAgent: string | null,
+) {
+    // 获取评分规则
+    const rulesResult = await pool.query(
+        `SELECT * FROM review_scoring_rules WHERE form_slug = 'join-application' LIMIT 1`,
+    );
+    if (rulesResult.rows.length === 0) return;
+
+    const rules = rulesResult.rows[0];
+
+    // 1. 作答时间分
+    let durationScore = 0;
+    if (
+        duration !== null &&
+        duration >= (rules.duration_threshold as number)
+    ) {
+        durationScore = rules.duration_score as number;
+    }
+
+    // 2. UA 检测分
+    let uaScore = 0;
+    if (isNormalBrowserUA(userAgent)) {
+        uaScore = rules.ua_score as number;
+    }
+
+    // 3. 客观题分
+    let objectiveScore = 0;
+    const objectiveDetail: Record<string, { got: number; max: number }> = {};
+    const objectiveRules = (rules.objective_rules || []) as Array<{
+        field_key: string;
+        correct_answer: string | boolean;
+        score: number;
+    }>;
+
+    for (const rule of objectiveRules) {
+        const answer = data[rule.field_key];
+        let got = 0;
+        if (typeof rule.correct_answer === "boolean") {
+            if (!!answer === rule.correct_answer) got = rule.score;
+        } else {
+            if (
+                String(answer ?? "").trim().toLowerCase() ===
+                String(rule.correct_answer).trim().toLowerCase()
+            ) {
+                got = rule.score;
+            }
+        }
+        objectiveScore += got;
+        objectiveDetail[rule.field_key] = { got, max: rule.score };
+    }
+
+    // 计算最大可能分（不含 AI 分，AI 分稍后手动触发）
+    const objectiveMax = objectiveRules.reduce((sum, r) => sum + r.score, 0);
+    const maxPossible =
+        (rules.duration_score as number) +
+        (rules.ua_score as number) +
+        objectiveMax +
+        (rules.ai_max_score as number);
+    const totalScore = durationScore + uaScore + objectiveScore;
+
+    await pool.query(
+        `INSERT INTO submission_scores
+            (submission_id, duration_score, ua_score, objective_score, objective_detail,
+             total_score, max_possible_score)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (submission_id) DO UPDATE SET
+            duration_score = $2,
+            ua_score = $3,
+            objective_score = $4,
+            objective_detail = $5,
+            total_score = EXCLUDED.total_score + COALESCE(submission_scores.ai_score, 0),
+            max_possible_score = $7,
+            updated_at = NOW()`,
+        [
+            submissionId,
+            durationScore,
+            uaScore,
+            objectiveScore,
+            JSON.stringify(objectiveDetail),
+            totalScore,
+            maxPossible,
+        ],
+    );
 }
