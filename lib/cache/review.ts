@@ -4,9 +4,7 @@
 
 import { unstable_cache, revalidateTag } from "next/cache";
 import { pool } from "@/lib/db";
-
-const REVIEW_SUBMISSIONS_TAG = "review-submissions";
-const REVIEW_RULES_TAG = "review-rules";
+import { CACHE_TAGS } from "./tags";
 
 // ─── 获取评分规则 ─────────────────────────────────────────
 export const getReviewScoringRules = unstable_cache(
@@ -22,7 +20,7 @@ export const getReviewScoringRules = unstable_cache(
         }
     },
     ["review-scoring-rules"],
-    { tags: [REVIEW_RULES_TAG] },
+    { tags: [CACHE_TAGS.REVIEW_RULES] },
 );
 
 // ─── 获取入服表单提交列表（含评分 + 审核状态） ────────────
@@ -102,14 +100,16 @@ export const getReviewSubmissions = unstable_cache(
         return { submissions: result.rows, total };
     },
     ["review-submissions-list"],
-    { tags: [REVIEW_SUBMISSIONS_TAG] },
+    { tags: [CACHE_TAGS.REVIEW_SUBMISSIONS] },
 );
 
 // ─── 使审核缓存失效 ─────────────────────────────────────
 export function invalidateReviewCache() {
-    revalidateTag(REVIEW_SUBMISSIONS_TAG, { expire: 0 });
+    // 审核决策（通过/拒绝）需要立即生效
+    revalidateTag(CACHE_TAGS.REVIEW_SUBMISSIONS, { expire: 0 });
 }
 
 export function invalidateReviewRulesCache() {
-    revalidateTag(REVIEW_RULES_TAG, { expire: 0 });
+    // 评分规则更新需要立即生效（影响后续评分）
+    revalidateTag(CACHE_TAGS.REVIEW_RULES, { expire: 0 });
 }

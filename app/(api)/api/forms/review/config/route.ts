@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import {
     getReviewScoringRules,
     invalidateReviewRulesCache,
-} from "@/lib/review-cache";
+} from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {

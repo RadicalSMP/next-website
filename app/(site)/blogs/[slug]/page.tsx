@@ -1,4 +1,4 @@
-import { getPublishedPostBySlug, getPostMetadataBySlug } from "@/lib/blog-cache";
+import { getPublishedPostBySlug, getPostMetadataBySlug } from "@/lib/cache";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BlogTableOfContents } from "@/components/blog-toc";

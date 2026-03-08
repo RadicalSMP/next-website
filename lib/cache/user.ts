@@ -1,8 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { pool } from "@/lib/db";
-
-// ─── 缓存标签 ────────────────────────────────────────────
-const ADMIN_USERS_CACHE_TAG = "admin-users";
+import { CACHE_TAGS } from "./tags";
 
 // ─── 管理后台用户列表（缓存，按 page/limit/search 分片） ──
 export const getAdminUsers = unstable_cache(
@@ -41,10 +39,11 @@ export const getAdminUsers = unstable_cache(
         return { users: result.rows, total };
     },
     ["admin-users-list"],
-    { tags: [ADMIN_USERS_CACHE_TAG] },
+    { tags: [CACHE_TAGS.ADMIN_USERS] },
 );
 
 // ─── 使用户缓存失效 ──────────────────────────────────────
 export function invalidateUserCache() {
-    revalidateTag(ADMIN_USERS_CACHE_TAG, { expire: 0 });
+    // 用户管理操作（封禁/角色变更）需要立即生效
+    revalidateTag(CACHE_TAGS.ADMIN_USERS, { expire: 0 });
 }

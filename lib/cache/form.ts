@@ -1,10 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { pool } from "@/lib/db";
-
-// ─── 缓存标签 ────────────────────────────────────────────
-const FORMS_CACHE_TAG = "forms";
-const ADMIN_FORMS_CACHE_TAG = "admin-forms";
-const FORM_SUBMISSIONS_CACHE_TAG = "form-submissions";
+import { CACHE_TAGS } from "./tags";
 
 // ─── 获取活跃表单列表（公开页面用，缓存） ─────────────────
 export const getActiveForms = unstable_cache(
@@ -26,7 +22,7 @@ export const getActiveForms = unstable_cache(
         }
     },
     ["forms-active-list"],
-    { tags: [FORMS_CACHE_TAG] },
+    { tags: [CACHE_TAGS.FORMS] },
 );
 
 // ─── 按 slug 获取表单详情（公开页面用，缓存） ─────────────
@@ -42,7 +38,7 @@ export const getFormBySlug = unstable_cache(
         return result.rows[0] || null;
     },
     ["form-by-slug"],
-    { tags: [FORMS_CACHE_TAG] },
+    { tags: [CACHE_TAGS.FORMS] },
 );
 
 // ─── 管理后台表单列表（缓存，含提交统计） ─────────────────
@@ -64,7 +60,7 @@ export const getAdminForms = unstable_cache(
         return result.rows;
     },
     ["admin-forms-list"],
-    { tags: [ADMIN_FORMS_CACHE_TAG] },
+    { tags: [CACHE_TAGS.ADMIN_FORMS] },
 );
 
 // ─── 管理后台获取单个表单（含字段定义） ───────────────────
@@ -80,7 +76,7 @@ export const getAdminFormById = unstable_cache(
         return result.rows[0] || null;
     },
     ["admin-form-by-id"],
-    { tags: [ADMIN_FORMS_CACHE_TAG] },
+    { tags: [CACHE_TAGS.ADMIN_FORMS] },
 );
 
 // ─── 获取表单提交列表（管理后台用，缓存） ─────────────────
@@ -109,17 +105,19 @@ export const getFormSubmissions = unstable_cache(
         return { submissions: result.rows, total };
     },
     ["form-submissions-list"],
-    { tags: [FORM_SUBMISSIONS_CACHE_TAG] },
+    { tags: [CACHE_TAGS.FORM_SUBMISSIONS] },
 );
 
 // ─── 使表单缓存失效 ──────────────────────────────────────
 export function invalidateFormCache() {
-    revalidateTag(FORMS_CACHE_TAG, { expire: 0 });
-    revalidateTag(ADMIN_FORMS_CACHE_TAG, { expire: 0 });
+    // 表单配置更新需要立即生效（避免用户提交到旧表单）
+    revalidateTag(CACHE_TAGS.FORMS, { expire: 0 });
+    revalidateTag(CACHE_TAGS.ADMIN_FORMS, { expire: 0 });
 }
 
 // ─── 使提交缓存失效 ──────────────────────────────────────
 export function invalidateSubmissionCache() {
-    revalidateTag(FORM_SUBMISSIONS_CACHE_TAG, { expire: 0 });
-    revalidateTag(ADMIN_FORMS_CACHE_TAG, { expire: 0 });
+    // 新提交需要立即在管理后台显示
+    revalidateTag(CACHE_TAGS.FORM_SUBMISSIONS, { expire: 0 });
+    revalidateTag(CACHE_TAGS.ADMIN_FORMS, { expire: 0 });
 }

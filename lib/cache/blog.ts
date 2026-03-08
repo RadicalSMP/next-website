@@ -1,9 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { pool } from "@/lib/db";
-
-// ─── 缓存标签 ────────────────────────────────────────────
-const BLOG_CACHE_TAG = "blog-posts";
-const ADMIN_BLOG_CACHE_TAG = "admin-blog-posts";
+import { CACHE_TAGS } from "./tags";
 
 // ─── 获取已发布文章列表（缓存） ───────────────────────────
 export const getPublishedPosts = unstable_cache(
@@ -20,7 +17,7 @@ export const getPublishedPosts = unstable_cache(
         return result.rows;
     },
     ["blog-published-list"],
-    { tags: [BLOG_CACHE_TAG] },
+    { tags: [CACHE_TAGS.BLOG_POSTS] },
 );
 
 // ─── 按 slug 获取已发布文章（缓存） ──────────────────────
@@ -36,7 +33,7 @@ export const getPublishedPostBySlug = unstable_cache(
         return result.rows[0] || null;
     },
     ["blog-post-by-slug"],
-    { tags: [BLOG_CACHE_TAG] },
+    { tags: [CACHE_TAGS.BLOG_POSTS] },
 );
 
 // ─── 按 slug 获取文章元数据（缓存，用于 SEO） ────────────
@@ -49,7 +46,7 @@ export const getPostMetadataBySlug = unstable_cache(
         return result.rows[0] || null;
     },
     ["blog-post-metadata"],
-    { tags: [BLOG_CACHE_TAG] },
+    { tags: [CACHE_TAGS.BLOG_POSTS] },
 );
 
 // ─── 管理后台文章列表（缓存，按 page/limit/status 分片） ──
@@ -88,11 +85,12 @@ export const getAdminBlogPosts = unstable_cache(
         return { posts: result.rows, total };
     },
     ["admin-blog-list"],
-    { tags: [ADMIN_BLOG_CACHE_TAG] },
+    { tags: [CACHE_TAGS.ADMIN_BLOG_POSTS] },
 );
 
 // ─── 使博客缓存失效（公开 + 管理后台） ───────────────────
 export function invalidateBlogCache() {
-    revalidateTag(BLOG_CACHE_TAG, { expire: 0 });
-    revalidateTag(ADMIN_BLOG_CACHE_TAG, { expire: 0 });
+    // 可接受博客更新的延迟 所以将 revalidateTag 的 profile 设为 max 
+    revalidateTag(CACHE_TAGS.BLOG_POSTS, "max");
+    revalidateTag(CACHE_TAGS.ADMIN_BLOG_POSTS, "max");
 }

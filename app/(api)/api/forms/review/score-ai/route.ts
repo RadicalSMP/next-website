@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
 import { createOpenAIClient } from "@/lib/openai";
-import { invalidateReviewCache } from "@/lib/review-cache";
+import { invalidateReviewCache } from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
