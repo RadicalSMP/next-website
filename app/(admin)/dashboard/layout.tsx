@@ -9,6 +9,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import { redirect } from "next/navigation";
 import { Toaster } from "sonner";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,30 +21,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export default async function DashboardRootLayout({
+// ─── 鉴权守卫（动态组件，需在 Suspense 内） ──────────────
+async function AuthGuard({ children }: { children: React.ReactNode }) {
+    const session = await auth.api.getSession({
+        headers: await headers(),
+    });
+
+    if (!session) {
+        return redirect("/sign-in");
+    }
+
+    if (session.user.role !== "admin") {
+        return redirect("/");
+    }
+
+    return <>{children}</>;
+}
+
+export default function DashboardRootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    // 获取用户的 Session
-    const session = await auth.api.getSession({
-        headers: await headers() // you need to pass the headers object.
-    })
-
-    // 若未登录 跳转到 /sign-in
-    // 若 role 并非 admin, 跳转回主页
-
-    if (!session) {
-        return redirect("/sign-in")
-    }
-
-    if (session.user.role !== "admin") {
-        return redirect("/")
-    }
-
     return (
-
-        
         <html lang="zh-cn" suppressHydrationWarning>
             <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
                 <ThemeProvider
@@ -52,32 +52,40 @@ export default async function DashboardRootLayout({
                     enableSystem
                     disableTransitionOnChange>
 
-                    <SidebarProvider>
-                        <DashboardSidebar />
+                    <Suspense fallback={
+                        <div className="flex items-center justify-center min-h-screen">
+                            <p className="text-muted-foreground">加载中...</p>
+                        </div>
+                    }>
+                        <AuthGuard>
+                            <SidebarProvider>
+                                <DashboardSidebar />
 
-                        {/* 主要内容区域 - 不会被 Sidebar 遮挡 */}
-                        <SidebarInset>
-                            <div className="fixed top-5 right-5 z-50">
-                                <ModeToggle />
-                            </div>
-
-                            {/* 页面内容 */}
-                            <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-                                <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min">
-                                    <div className="p-6">
-                                        {children}
+                                {/* 主要内容区域 */}
+                                <SidebarInset>
+                                    <div className="fixed top-5 right-5 z-50">
+                                        <ModeToggle />
                                     </div>
-                                </div>
-                            </div>
 
-                            {/* 页脚 */}
-                            <Footer />
-                        </SidebarInset>
-                    </SidebarProvider>
+                                    {/* 页面内容 */}
+                                    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+                                        <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min">
+                                            <div className="p-6">
+                                                {children}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 页脚 */}
+                                    <Footer />
+                                </SidebarInset>
+                            </SidebarProvider>
+                        </AuthGuard>
+                    </Suspense>
 
                 </ThemeProvider>
                 <Toaster richColors position="top-right" />
             </body>
         </html>
-    )
+    );
 }

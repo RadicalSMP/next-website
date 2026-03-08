@@ -51,9 +51,9 @@ export {
  * @param immediate - 是否立即过期（默认 false，使用 stale-while-revalidate）
  */
 export function invalidateAllCache(immediate = false) {
-  const profile = immediate ? { expire: 0 } : "max";
+  const profile: "max" | { expire: number } = immediate ? { expire: 0 } : "max";
   Object.values(CACHE_TAGS).forEach((tag) => {
-    revalidateTag(tag, profile as "max");
+    revalidateTag(tag, profile);
   });
 }
 
@@ -63,6 +63,6 @@ export function invalidateAllCache(immediate = false) {
  * @param tags - 要失效的标签列表
  */
 export function invalidateCacheTags(immediate: boolean, ...tags: string[]) {
-  const profile = immediate ? { expire: 0 } : "max";
-  tags.forEach((tag) => revalidateTag(tag, profile as "max"));
+  const profile: "max" | { expire: number } = immediate ? { expire: 0 } : "max";
+  tags.forEach((tag) => revalidateTag(tag, profile));
 }

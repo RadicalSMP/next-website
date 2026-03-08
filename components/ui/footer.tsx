@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "./button";
 import { org } from "@/app/resource/content"
 
