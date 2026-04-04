@@ -1,7 +1,11 @@
 import { Button } from "./button";
-import { org } from "@/app/resource/content"
+import { cacheLife } from "next/cache";
+import { org } from "@/app/resource/content";
 
-export const Footer = () => {
+export const Footer = async () => {
+    "use cache";
+    cacheLife("days");
+
     const currentYear = new Date().getFullYear();
 
     return (
@@ -36,5 +40,5 @@ export const Footer = () => {
                 </div>
             </div>
         </footer>
-    )
-}
+    );
+};

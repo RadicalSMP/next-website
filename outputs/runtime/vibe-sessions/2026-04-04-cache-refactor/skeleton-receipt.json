@@ -1,0 +1,14 @@
+{
+  "run_id": "2026-04-04-cache-refactor",
+  "stage": "skeleton_check",
+  "branch": "refactor/cache",
+  "base_branch": "dev",
+  "working_tree_dirty": false,
+  "docs_present": false,
+  "outputs_present": false,
+  "notes": [
+    "当前分支未引入 dev 上的 cacheComponents 迁移提交",
+    "当前缓存仍位于 lib/*-cache.ts",
+    "适合按三阶段路线做保守改造"
+  ]
+}

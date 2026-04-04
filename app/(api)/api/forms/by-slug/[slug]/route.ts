@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { getFormBySlug } from "@/lib/form-cache";
+import { getFormBySlug } from "@/lib/cache";
 
 // ─── GET /api/forms/by-slug/[slug] — 按 slug 获取表单 ─────
 export async function GET(

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
-import { getFormSubmissions, invalidateSubmissionCache } from "@/lib/form-cache";
-import { invalidateReviewCache } from "@/lib/review-cache";
+import { getFormSubmissions, invalidateSubmissionCache, invalidateReviewCache } from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {

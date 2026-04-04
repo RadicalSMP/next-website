@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
-import {
-    getReviewScoringRules,
-    invalidateReviewRulesCache,
-} from "@/lib/review-cache";
+import { getReviewScoringRules, invalidateReviewRulesCache } from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {

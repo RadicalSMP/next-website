@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,7 +64,7 @@ function generateFingerprint(): string {
 
 /* ─── 主组件 ─────────────────────────────────────────────── */
 
-export default function FormFillPage() {
+function FormFillPageContent() {
     const params = useParams<{ slug: string }>();
 
     const [form, setForm] = useState<FormData | null>(null);
@@ -329,5 +329,21 @@ export default function FormFillPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+function FormFillPageFallback() {
+    return (
+        <div className="flex justify-center py-20">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+    );
+}
+
+export default function FormFillPage() {
+    return (
+        <Suspense fallback={<FormFillPageFallback />}>
+            <FormFillPageContent />
+        </Suspense>
     );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
-import { invalidateBlogCache, getAdminBlogPosts } from "@/lib/blog-cache";
+import { invalidateBlogCache, getAdminBlogPosts } from "@/lib/cache";
 
 // ─── GET /api/blog — 获取文章列表 ──────────────────────────
 export async function GET(request: NextRequest) {

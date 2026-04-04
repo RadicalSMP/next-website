@@ -1,0 +1,32 @@
+{
+  "run_id": "2026-04-04-cache-refactor",
+  "stage": "deep_interview",
+  "goal": "在 refactor/cache 分支完成三阶段缓存重构",
+  "deliverable": [
+    "统一的 lib/cache 结构",
+    "公开纯读缓存的 Cache Components 迁移",
+    "后台缓存保守保留 unstable_cache",
+    "lint/build 验证结果"
+  ],
+  "constraints": [
+    "仅在 refactor/cache 分支修改",
+    "不直接复制 dev 分支的全量迁移",
+    "不引入 Vercel worker workaround"
+  ],
+  "acceptance_criteria": [
+    "缓存模块结构统一",
+    "仅公开纯读缓存迁移到 use cache",
+    "后台缓存仍可正常工作",
+    "bun run lint 通过",
+    "bun run build 通过"
+  ],
+  "non_goals": [
+    "全量替换 unstable_cache",
+    "顺手改 layout 或鉴权架构"
+  ],
+  "autonomy_mode": "interactive_governed",
+  "inferred_assumptions": [
+    "用户已批准三阶段路线，允许直接实施",
+    "本次无需从 dev 分支 cherry-pick cache 提交"
+  ]
+}

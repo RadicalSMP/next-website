@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { invalidateUserCache } from "@/lib/user-cache";
+import { invalidateUserCache } from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {

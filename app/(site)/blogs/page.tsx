@@ -1,4 +1,4 @@
-import { getPublishedPosts } from "@/lib/blog-cache";
+import { getPublishedPosts } from "@/lib/cache";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Metadata } from "next";
