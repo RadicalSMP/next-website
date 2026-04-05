@@ -1,6 +1,7 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { pool } from "@/lib/db";
 import { CACHE_TAGS } from "./tags";
+import { CACHE_KEYS } from "./keys";
 
 // ─── 管理后台用户列表（保留 unstable_cache） ─────────────────────
 export const getAdminUsers = unstable_cache(
@@ -38,7 +39,7 @@ export const getAdminUsers = unstable_cache(
 
         return { users: result.rows, total };
     },
-    ["admin-users-list"],
+    CACHE_KEYS.ADMIN_USER_LIST,
     { tags: [CACHE_TAGS.ADMIN_USERS] },
 );
 

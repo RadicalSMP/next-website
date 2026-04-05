@@ -6,6 +6,7 @@ import {
 } from "next/cache";
 import { pool } from "@/lib/db";
 import { CACHE_TAGS, getFormTag } from "./tags";
+import { CACHE_KEYS } from "./keys";
 
 function isUndefinedTableError(error: unknown) {
     return (
@@ -77,7 +78,7 @@ export const getAdminForms = unstable_cache(
         );
         return result.rows;
     },
-    ["admin-forms-list"],
+    CACHE_KEYS.ADMIN_FORM_LIST,
     { tags: [CACHE_TAGS.ADMIN_FORMS] },
 );
 
@@ -93,7 +94,7 @@ export const getAdminFormById = unstable_cache(
         );
         return result.rows[0] || null;
     },
-    ["admin-form-by-id"],
+    CACHE_KEYS.ADMIN_FORM_DETAIL,
     { tags: [CACHE_TAGS.ADMIN_FORMS] },
 );
 
@@ -122,7 +123,7 @@ export const getFormSubmissions = unstable_cache(
 
         return { submissions: result.rows, total };
     },
-    ["form-submissions-list"],
+    CACHE_KEYS.FORM_SUBMISSION_LIST,
     { tags: [CACHE_TAGS.FORM_SUBMISSIONS] },
 );
 

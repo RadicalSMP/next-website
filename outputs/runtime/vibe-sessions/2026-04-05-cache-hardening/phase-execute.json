@@ -1,0 +1,31 @@
+{
+  "run_id": "2026-04-05-cache-hardening",
+  "stage": "execute",
+  "status": "completed",
+  "branch": "refactor/cache",
+  "completed_work": [
+    "阶段 1：修正公开表单列表与博客预生成边界，并收紧缓存层异常兜底",
+    "阶段 2：引入博客与表单的实体级缓存 tag，细化写路径失效链，并统一审核配置缓存读取",
+    "阶段 3：统一后台 unstable_cache keyParts 命名，并让后台单表单读取接入 getAdminFormById"
+  ],
+  "verification": {
+    "phase_1": {
+      "lint": "passed",
+      "build": "passed",
+      "commit": "3ff679d"
+    },
+    "phase_2": {
+      "lint": "passed",
+      "build": "passed",
+      "commit": "d647b36"
+    },
+    "phase_3": {
+      "lint": "passed",
+      "build": "passed"
+    }
+  },
+  "notes": [
+    "本次保持了后台缓存与公开缓存的分层策略，没有做全量 unstable_cache 迁移",
+    "所有阶段均在 refactor/cache 分支串行完成，并在完成后单独提交"
+  ]
+}

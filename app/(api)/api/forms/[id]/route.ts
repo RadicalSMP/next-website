@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
-import { invalidateFormCache, invalidateReviewConfigCache } from "@/lib/cache";
+import {
+    getAdminFormById,
+    invalidateFormCache,
+    invalidateReviewConfigCache,
+} from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -25,19 +29,11 @@ export async function GET(
 
     const { id } = await params;
 
-    const result = await pool.query(
-        `SELECT f.*, u.name AS created_by_name
-         FROM forms f
-         LEFT JOIN "user" u ON f.created_by = u.id
-         WHERE f.id = $1`,
-        [id],
-    );
+    const form = await getAdminFormById(id);
 
-    if (result.rows.length === 0) {
+    if (!form) {
         return NextResponse.json({ error: "表单不存在" }, { status: 404 });
     }
-
-    const form = result.rows[0];
 
     // 解析 allowed_user_ids 对应的用户信息
     let allowedUsers: { id: string; name: string; email: string; image: string | null }[] = [];

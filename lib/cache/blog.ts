@@ -6,6 +6,7 @@ import {
 } from "next/cache";
 import { pool } from "@/lib/db";
 import { CACHE_TAGS, getBlogPostTag } from "./tags";
+import { CACHE_KEYS } from "./keys";
 
 // ─── 获取已发布文章列表（公开页面用，迁移到 Cache Components） ─────
 export async function getPublishedPosts() {
@@ -104,7 +105,7 @@ export const getAdminBlogPosts = unstable_cache(
 
         return { posts: result.rows, total };
     },
-    ["admin-blog-list"],
+    CACHE_KEYS.ADMIN_BLOG_LIST,
     { tags: [CACHE_TAGS.ADMIN_BLOG_POSTS] },
 );
 

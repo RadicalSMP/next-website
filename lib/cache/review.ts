@@ -5,6 +5,7 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { pool } from "@/lib/db";
 import { CACHE_TAGS } from "./tags";
+import { CACHE_KEYS } from "./keys";
 
 function isUndefinedTableError(error: unknown) {
     return (
@@ -31,7 +32,7 @@ export const getReviewScoringRules = unstable_cache(
             throw error;
         }
     },
-    ["review-scoring-rules"],
+    CACHE_KEYS.REVIEW_RULES,
     { tags: [CACHE_TAGS.REVIEW_RULES] },
 );
 
@@ -64,7 +65,7 @@ export const getReviewConfig = unstable_cache(
             throw error;
         }
     },
-    ["review-config"],
+    CACHE_KEYS.REVIEW_CONFIG,
     { tags: [CACHE_TAGS.REVIEW_CONFIG] },
 );
 
@@ -140,7 +141,7 @@ export const getReviewSubmissions = unstable_cache(
 
         return { submissions: result.rows, total };
     },
-    ["review-submissions-list"],
+    CACHE_KEYS.REVIEW_SUBMISSION_LIST,
     { tags: [CACHE_TAGS.REVIEW_SUBMISSIONS] },
 );
 
