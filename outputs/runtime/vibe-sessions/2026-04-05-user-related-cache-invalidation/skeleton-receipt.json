@@ -1,0 +1,14 @@
+{
+  "run_id": "2026-04-05-user-related-cache-invalidation",
+  "stage": "skeleton_check",
+  "branch": "refactor/cache",
+  "base_branch": "dev",
+  "working_tree_dirty": false,
+  "docs_present": true,
+  "outputs_present": false,
+  "notes": [
+    "当前分支已完成上一轮 cache hardening",
+    "本轮只修复用户删除后联表缓存失效缺口",
+    "工作区当前干净，适合做单阶段修复"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "run_id": "2026-04-05-user-related-cache-invalidation",
+  "stage": "deep_interview",
+  "goal": "修复用户删除后相关联表缓存未失效的问题",
+  "deliverable": [
+    "用户关联缓存目标采集函数",
+    "用户关联缓存失效函数",
+    "删除用户路径修复",
+    "验证结果与提交"
+  ],
+  "constraints": [
+    "只处理第二个 review finding",
+    "不修改第一和第三个 finding",
+    "保持 role/ban/unban 的失效范围最小"
+  ],
+  "acceptance_criteria": [
+    "删除用户后博客、表单后台、提交与审核相关缓存不再继续显示旧用户名/头像",
+    "lint 通过",
+    "build 通过"
+  ],
+  "non_goals": [
+    "新增用户资料编辑入口",
+    "处理表单本体变更失效链",
+    "合并 review rules/config 双缓存入口"
+  ],
+  "autonomy_mode": "interactive_governed",
+  "inferred_assumptions": [
+    "当前最需要覆盖的用户变更场景是 removeUser",
+    "setRole、ban、unban 不需要扩大到内容缓存失效"
+  ]
+}

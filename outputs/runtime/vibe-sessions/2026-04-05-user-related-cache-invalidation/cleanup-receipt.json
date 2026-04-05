@@ -1,0 +1,14 @@
+{
+  "run_id": "2026-04-05-user-related-cache-invalidation",
+  "stage": "cleanup",
+  "status": "completed",
+  "residuals": [
+    "当前只覆盖了删除用户场景；若后续新增修改昵称/头像的入口，应复用同一套关联缓存失效逻辑",
+    "用户关联缓存目标目前只精确采集了公开博客详情的 slug，其余依赖用户名/头像的缓存仍采用按功能块刷新"
+  ],
+  "handoff_notes": [
+    "如果以后需要进一步压缩失效范围，可继续把表单提交与审核提交拆成更细粒度 tag",
+    "如果后续要支持用户资料编辑，建议直接复用 getUserRelatedCacheTargets 与 invalidateUserRelatedContentCache"
+  ],
+  "final_verdict": "用户删除后的联表缓存失效缺口已修复，并通过 lint 与生产构建验证"
+}

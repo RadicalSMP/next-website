@@ -30,5 +30,7 @@ export {
 
 export {
     getAdminUsers,
+    getUserRelatedCacheTargets,
     invalidateUserCache,
+    invalidateUserRelatedContentCache,
 } from "./user";

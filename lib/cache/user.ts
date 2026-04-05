@@ -1,6 +1,6 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { pool } from "@/lib/db";
-import { CACHE_TAGS } from "./tags";
+import { CACHE_TAGS, getBlogPostTag } from "./tags";
 import { CACHE_KEYS } from "./keys";
 
 // ─── 管理后台用户列表（保留 unstable_cache） ─────────────────────
@@ -43,7 +43,41 @@ export const getAdminUsers = unstable_cache(
     { tags: [CACHE_TAGS.ADMIN_USERS] },
 );
 
+export interface UserRelatedCacheTargets {
+    publishedBlogSlugs: string[];
+}
+
+export async function getUserRelatedCacheTargets(
+    userId: string,
+): Promise<UserRelatedCacheTargets> {
+    const blogResult = await pool.query(
+        `SELECT slug
+         FROM blog_posts
+         WHERE author_id = $1
+           AND status = 'published'`,
+        [userId],
+    );
+
+    return {
+        publishedBlogSlugs: blogResult.rows.map((row) => row.slug as string),
+    };
+}
+
 // ─── 使用户缓存失效 ──────────────────────────────────────────────
 export function invalidateUserCache() {
     revalidateTag(CACHE_TAGS.ADMIN_USERS, { expire: 0 });
+}
+
+export function invalidateUserRelatedContentCache(
+    targets: UserRelatedCacheTargets,
+) {
+    revalidateTag(CACHE_TAGS.BLOG_POSTS, { expire: 0 });
+    revalidateTag(CACHE_TAGS.ADMIN_BLOG_POSTS, { expire: 0 });
+    revalidateTag(CACHE_TAGS.ADMIN_FORMS, { expire: 0 });
+    revalidateTag(CACHE_TAGS.FORM_SUBMISSIONS, { expire: 0 });
+    revalidateTag(CACHE_TAGS.REVIEW_SUBMISSIONS, { expire: 0 });
+
+    for (const slug of new Set(targets.publishedBlogSlugs.filter(Boolean))) {
+        revalidateTag(getBlogPostTag(slug), { expire: 0 });
+    }
 }
