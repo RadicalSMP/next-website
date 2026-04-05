@@ -92,7 +92,7 @@ export async function PUT(
         return NextResponse.json({ error: "文章不存在" }, { status: 404 });
     }
 
-    invalidateBlogCache();
+    invalidateBlogCache(result.rows[0].slug);
 
     return NextResponse.json({ post: result.rows[0] });
 }
@@ -110,7 +110,7 @@ export async function DELETE(
     const { id } = await params;
 
     const result = await pool.query(
-        `DELETE FROM blog_posts WHERE id = $1 RETURNING id`,
+        `DELETE FROM blog_posts WHERE id = $1 RETURNING id, slug`,
         [id],
     );
 
@@ -118,7 +118,7 @@ export async function DELETE(
         return NextResponse.json({ error: "文章不存在" }, { status: 404 });
     }
 
-    invalidateBlogCache();
+    invalidateBlogCache(result.rows[0].slug);
 
     return NextResponse.json({ success: true });
 }

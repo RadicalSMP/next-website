@@ -1,0 +1,26 @@
+{
+  "run_id": "2026-04-05-cache-hardening",
+  "phase": 2,
+  "title": "缓存粒度与失效链细化",
+  "status": "completed",
+  "completed_work": [
+    "为博客与表单增加实体级缓存 tag，并将公开详情读取从列表 tag 中拆开",
+    "博客与表单的写路径失效改为同时刷新列表缓存和受影响实体缓存",
+    "新增 review-config 缓存入口，将审核规则与 join-application 表单字段统一为同一缓存语义",
+    "在 join-application 表单创建、更新、删除以及审核规则更新时补充 review-config 的失效链"
+  ],
+  "verification": {
+    "lint": {
+      "command": "bun run lint",
+      "result": "passed"
+    },
+    "build": {
+      "command": "bun run build",
+      "result": "passed"
+    }
+  },
+  "notes": [
+    "后台列表缓存仍保留区块级 tag，本阶段只把公开读取与审核配置拉到更细粒度边界",
+    "表单更新路径已同时覆盖 slug 变更前后的实体缓存失效"
+  ]
+}

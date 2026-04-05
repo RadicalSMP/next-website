@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
-import { invalidateFormCache } from "@/lib/cache";
+import { invalidateFormCache, invalidateReviewConfigCache } from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -66,6 +66,15 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const { title, description, slug, fields, visibility, allowed_user_ids, status } = body;
+
+    const existingFormResult = await pool.query(
+        `SELECT slug FROM forms WHERE id = $1`,
+        [id],
+    );
+    if (existingFormResult.rows.length === 0) {
+        return NextResponse.json({ error: "表单不存在" }, { status: 404 });
+    }
+    const previousSlug = existingFormResult.rows[0].slug as string;
 
     // 构建动态 SET 子句
     const setClauses: string[] = [];
@@ -143,7 +152,11 @@ export async function PUT(
         return NextResponse.json({ error: "表单不存在" }, { status: 404 });
     }
 
-    invalidateFormCache();
+    const currentSlug = result.rows[0].slug as string;
+    invalidateFormCache([previousSlug, currentSlug]);
+    if (previousSlug === "join-application" || currentSlug === "join-application") {
+        invalidateReviewConfigCache();
+    }
 
     return NextResponse.json({ form: result.rows[0] });
 }
@@ -161,7 +174,7 @@ export async function DELETE(
     const { id } = await params;
 
     const result = await pool.query(
-        `DELETE FROM forms WHERE id = $1 RETURNING id`,
+        `DELETE FROM forms WHERE id = $1 RETURNING id, slug`,
         [id],
     );
 
@@ -169,7 +182,10 @@ export async function DELETE(
         return NextResponse.json({ error: "表单不存在" }, { status: 404 });
     }
 
-    invalidateFormCache();
+    invalidateFormCache([result.rows[0].slug]);
+    if (result.rows[0].slug === "join-application") {
+        invalidateReviewConfigCache();
+    }
 
     return NextResponse.json({ success: true });
 }

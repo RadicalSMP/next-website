@@ -5,7 +5,7 @@ import {
     unstable_cache,
 } from "next/cache";
 import { pool } from "@/lib/db";
-import { CACHE_TAGS } from "./tags";
+import { CACHE_TAGS, getFormTag } from "./tags";
 
 function isUndefinedTableError(error: unknown) {
     return (
@@ -46,7 +46,7 @@ export async function getActiveForms() {
 // ─── 按 slug 获取表单详情（公开页面用，迁移到 Cache Components） ──
 export async function getFormBySlug(slug: string) {
     "use cache";
-    cacheTag(CACHE_TAGS.FORMS);
+    cacheTag(getFormTag(slug));
     cacheLife("hours");
 
     const result = await pool.query(
@@ -127,9 +127,12 @@ export const getFormSubmissions = unstable_cache(
 );
 
 // ─── 使表单缓存失效 ────────────────────────────────────────────
-export function invalidateFormCache() {
+export function invalidateFormCache(slugs: string[] = []) {
     revalidateTag(CACHE_TAGS.FORMS, { expire: 0 });
     revalidateTag(CACHE_TAGS.ADMIN_FORMS, { expire: 0 });
+    for (const slug of new Set(slugs.filter(Boolean))) {
+        revalidateTag(getFormTag(slug), { expire: 0 });
+    }
 }
 
 // ─── 使提交缓存失效 ────────────────────────────────────────────

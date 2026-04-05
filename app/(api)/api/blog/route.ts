@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         [title.trim(), slug, content || "", excerpt || null, cover_image || null, postStatus, session.user.id, publishedAt],
     );
 
-    invalidateBlogCache();
+    invalidateBlogCache(result.rows[0].slug);
 
     return NextResponse.json({ post: result.rows[0] }, { status: 201 });
 }

@@ -6,5 +6,14 @@ export const CACHE_TAGS = {
     FORM_SUBMISSIONS: "form-submissions",
     REVIEW_SUBMISSIONS: "review-submissions",
     REVIEW_RULES: "review-rules",
+    REVIEW_CONFIG: "review-config",
     ADMIN_USERS: "admin-users",
 } as const;
+
+export function getBlogPostTag(slug: string) {
+    return `blog-post:${slug}`;
+}
+
+export function getFormTag(slug: string) {
+    return `form:${slug}`;
+}

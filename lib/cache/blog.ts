@@ -5,7 +5,7 @@ import {
     unstable_cache,
 } from "next/cache";
 import { pool } from "@/lib/db";
-import { CACHE_TAGS } from "./tags";
+import { CACHE_TAGS, getBlogPostTag } from "./tags";
 
 // ─── 获取已发布文章列表（公开页面用，迁移到 Cache Components） ─────
 export async function getPublishedPosts() {
@@ -43,7 +43,7 @@ export async function getPublishedPostSlugs() {
 // ─── 按 slug 获取已发布文章（公开页面用，迁移到 Cache Components） ──
 export async function getPublishedPostBySlug(slug: string) {
     "use cache";
-    cacheTag(CACHE_TAGS.BLOG_POSTS);
+    cacheTag(getBlogPostTag(slug));
     cacheLife("hours");
 
     const result = await pool.query(
@@ -59,7 +59,7 @@ export async function getPublishedPostBySlug(slug: string) {
 // ─── 按 slug 获取文章元数据（公开页面用，迁移到 Cache Components） ──
 export async function getPostMetadataBySlug(slug: string) {
     "use cache";
-    cacheTag(CACHE_TAGS.BLOG_POSTS);
+    cacheTag(getBlogPostTag(slug));
     cacheLife("hours");
 
     const result = await pool.query(
@@ -109,7 +109,10 @@ export const getAdminBlogPosts = unstable_cache(
 );
 
 // ─── 使博客缓存失效（公开 + 管理后台） ───────────────────────────
-export function invalidateBlogCache() {
+export function invalidateBlogCache(slug?: string) {
     revalidateTag(CACHE_TAGS.BLOG_POSTS, { expire: 0 });
     revalidateTag(CACHE_TAGS.ADMIN_BLOG_POSTS, { expire: 0 });
+    if (slug) {
+        revalidateTag(getBlogPostTag(slug), { expire: 0 });
+    }
 }

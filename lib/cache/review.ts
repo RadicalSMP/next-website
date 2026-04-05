@@ -35,6 +35,39 @@ export const getReviewScoringRules = unstable_cache(
     { tags: [CACHE_TAGS.REVIEW_RULES] },
 );
 
+// ─── 获取审核配置（规则 + 表单字段） ─────────────────────────────
+export const getReviewConfig = unstable_cache(
+    async (formSlug: string = "join-application") => {
+        try {
+            const [rulesResult, formResult] = await Promise.all([
+                pool.query(
+                    `SELECT * FROM review_scoring_rules WHERE form_slug = $1`,
+                    [formSlug],
+                ),
+                pool.query(
+                    `SELECT fields FROM forms WHERE slug = $1 LIMIT 1`,
+                    [formSlug],
+                ),
+            ]);
+
+            return {
+                rules: rulesResult.rows[0] || null,
+                formFields: formResult.rows[0]?.fields || [],
+            };
+        } catch (error) {
+            if (isUndefinedTableError(error)) {
+                return {
+                    rules: null,
+                    formFields: [],
+                };
+            }
+            throw error;
+        }
+    },
+    ["review-config"],
+    { tags: [CACHE_TAGS.REVIEW_CONFIG] },
+);
+
 // ─── 获取入服表单提交列表（保留 unstable_cache） ─────────────────
 export const getReviewSubmissions = unstable_cache(
     async (
@@ -118,4 +151,8 @@ export function invalidateReviewCache() {
 
 export function invalidateReviewRulesCache() {
     revalidateTag(CACHE_TAGS.REVIEW_RULES, { expire: 0 });
+}
+
+export function invalidateReviewConfigCache() {
+    revalidateTag(CACHE_TAGS.REVIEW_CONFIG, { expire: 0 });
 }

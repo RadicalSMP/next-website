@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
-import { getAdminForms, invalidateFormCache } from "@/lib/cache";
+import {
+    getAdminForms,
+    invalidateFormCache,
+    invalidateReviewConfigCache,
+} from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -78,7 +82,10 @@ export async function POST(request: NextRequest) {
         ],
     );
 
-    invalidateFormCache();
+    invalidateFormCache([result.rows[0].slug]);
+    if (result.rows[0].slug === "join-application") {
+        invalidateReviewConfigCache();
+    }
 
     return NextResponse.json({ form: result.rows[0] }, { status: 201 });
 }

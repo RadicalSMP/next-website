@@ -21,9 +21,11 @@ export {
 
 export {
     getReviewScoringRules,
+    getReviewConfig,
     getReviewSubmissions,
     invalidateReviewCache,
     invalidateReviewRulesCache,
+    invalidateReviewConfigCache,
 } from "./review";
 
 export {
