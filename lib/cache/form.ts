@@ -7,6 +7,15 @@ import {
 import { pool } from "@/lib/db";
 import { CACHE_TAGS } from "./tags";
 
+function isUndefinedTableError(error: unknown) {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "42P01"
+    );
+}
+
 // ─── 获取活跃表单列表（公开页面用，迁移到 Cache Components） ─────
 export async function getActiveForms() {
     "use cache";
@@ -16,17 +25,21 @@ export async function getActiveForms() {
     try {
         const result = await pool.query(
             `SELECT f.id, f.title, f.description, f.slug, f.visibility, f.status,
-                    f.allowed_user_ids, f.created_at,
+                    f.created_at,
                     u.name AS created_by_name
              FROM forms f
              LEFT JOIN "user" u ON f.created_by = u.id
              WHERE f.status = 'active'
+               AND f.visibility IN ('public', 'authenticated')
              ORDER BY f.created_at DESC`,
         );
         return result.rows;
-    } catch {
+    } catch (error) {
         // 表不存在时返回空数组（迁移前的构建兼容）
-        return [];
+        if (isUndefinedTableError(error)) {
+            return [];
+        }
+        throw error;
     }
 }
 

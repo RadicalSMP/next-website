@@ -2,6 +2,7 @@ export { CACHE_TAGS } from "./tags";
 
 export {
     getPublishedPosts,
+    getPublishedPostSlugs,
     getPublishedPostBySlug,
     getPostMetadataBySlug,
     getAdminBlogPosts,

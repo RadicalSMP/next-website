@@ -1,14 +1,14 @@
 import {
     getPublishedPostBySlug,
     getPostMetadataBySlug,
-    getPublishedPosts,
+    getPublishedPostSlugs,
 } from "@/lib/cache";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BlogTableOfContents } from "@/components/blog-toc";
 
 export async function generateStaticParams() {
-    const posts = await getPublishedPosts();
+    const posts = await getPublishedPostSlugs();
 
     return posts.map((post) => ({
         slug: post.slug,

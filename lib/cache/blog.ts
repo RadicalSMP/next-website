@@ -25,6 +25,21 @@ export async function getPublishedPosts() {
     return result.rows;
 }
 
+// ─── 获取已发布文章 slug 列表（预生成用） ──────────────────────────
+export async function getPublishedPostSlugs() {
+    "use cache";
+    cacheTag(CACHE_TAGS.BLOG_POSTS);
+    cacheLife("hours");
+
+    const result = await pool.query(
+        `SELECT bp.slug
+         FROM blog_posts bp
+         WHERE bp.status = 'published'
+         ORDER BY bp.published_at DESC`,
+    );
+    return result.rows;
+}
+
 // ─── 按 slug 获取已发布文章（公开页面用，迁移到 Cache Components） ──
 export async function getPublishedPostBySlug(slug: string) {
     "use cache";

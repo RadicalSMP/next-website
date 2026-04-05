@@ -6,6 +6,15 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { pool } from "@/lib/db";
 import { CACHE_TAGS } from "./tags";
 
+function isUndefinedTableError(error: unknown) {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "42P01"
+    );
+}
+
 // ─── 获取评分规则（保留 unstable_cache） ─────────────────────────
 export const getReviewScoringRules = unstable_cache(
     async (formSlug: string = "join-application") => {
@@ -15,8 +24,11 @@ export const getReviewScoringRules = unstable_cache(
                 [formSlug],
             );
             return result.rows[0] || null;
-        } catch {
-            return null;
+        } catch (error) {
+            if (isUndefinedTableError(error)) {
+                return null;
+            }
+            throw error;
         }
     },
     ["review-scoring-rules"],
