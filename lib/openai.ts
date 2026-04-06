@@ -6,7 +6,7 @@
  */
 
 import OpenAI from "openai";
-import { getSetting } from "@/lib/settings";
+import { getAIConfigCached } from "@/lib/cache";
 
 /**
  * 获取 AI 配置（从数据库 + 环境变量 fallback）
@@ -16,23 +16,11 @@ export async function getAIConfig(): Promise<{
     baseURL: string;
     model: string;
 }> {
-    const dbApiKey = await getSetting("ai.api_key");
-    const dbBaseUrl = await getSetting("ai.base_url");
-    const dbModel = await getSetting("ai.model");
-
-    const apiKey = dbApiKey || process.env.OPENAI_API_KEY || "";
-    const baseURL = dbBaseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-    const model = dbModel || process.env.OPENAI_MODEL || "gpt-4o-mini";
-
-    if (!apiKey) {
-        throw new Error("未配置 AI API Key，请在系统设置中配置或设置 OPENAI_API_KEY 环境变量");
-    }
-
-    return { apiKey, baseURL, model };
+    return getAIConfigCached();
 }
 
 /**
- * 创建 OpenAI 客户端实例（每次调用时从数据库读取最新配置）
+ * 创建 OpenAI 客户端实例（每次调用时复用服务端缓存配置）
  */
 export async function createOpenAIClient(): Promise<{
     client: OpenAI;

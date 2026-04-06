@@ -11,4 +11,7 @@ export const CACHE_KEYS = {
     REVIEW_CONFIG: createCacheKey("cache", "review", "config"),
     REVIEW_SUBMISSION_LIST: createCacheKey("cache", "review", "submission-list"),
     ADMIN_USER_LIST: createCacheKey("cache", "user", "admin-list"),
+    SETTING_ITEM: createCacheKey("cache", "settings", "item"),
+    SETTINGS_MASKED: createCacheKey("cache", "settings", "masked"),
+    AI_CONFIG: createCacheKey("cache", "settings", "ai-config"),
 };

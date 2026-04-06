@@ -8,6 +8,7 @@ export const CACHE_TAGS = {
     REVIEW_RULES: "review-rules",
     REVIEW_CONFIG: "review-config",
     ADMIN_USERS: "admin-users",
+    SETTINGS: "settings",
 } as const;
 
 export function getBlogPostTag(slug: string) {
