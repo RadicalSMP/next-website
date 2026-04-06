@@ -41,3 +41,8 @@ export {
     getAIConfigCached,
     invalidateSettingsCache,
 } from "./settings";
+
+export {
+    getAdminInvitationCodes,
+    invalidateInvitationCodeCache,
+} from "./invitation-code";

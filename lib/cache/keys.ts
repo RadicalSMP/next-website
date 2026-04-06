@@ -14,4 +14,5 @@ export const CACHE_KEYS = {
     SETTING_ITEM: createCacheKey("cache", "settings", "item"),
     SETTINGS_MASKED: createCacheKey("cache", "settings", "masked"),
     AI_CONFIG: createCacheKey("cache", "settings", "ai-config"),
+    ADMIN_INVITATION_CODE_LIST: createCacheKey("cache", "invitation-code", "admin-list"),
 };

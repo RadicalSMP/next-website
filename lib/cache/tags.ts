@@ -9,6 +9,7 @@ export const CACHE_TAGS = {
     REVIEW_CONFIG: "review-config",
     ADMIN_USERS: "admin-users",
     SETTINGS: "settings",
+    INVITATION_CODES: "invitation-codes",
 } as const;
 
 export function getBlogPostTag(slug: string) {

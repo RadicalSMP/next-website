@@ -4,6 +4,7 @@ import { createAuthMiddleware, APIError } from "better-auth/api";
 import { Pool } from "pg";
 import { admin } from "better-auth/plugins"
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
+import { invalidateInvitationCodeCache } from "@/lib/cache";
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -182,6 +183,8 @@ export const auth = betterAuth({
                 `UPDATE "invitation_code" SET "uses" = "uses" + 1 WHERE "id" = $1`,
                 [codeId],
             );
+
+            invalidateInvitationCodeCache();
         }),
     },
 })
