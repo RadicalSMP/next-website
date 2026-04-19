@@ -4,11 +4,10 @@ import "@/app/globals.css";
 
 import { Footer } from "@/components/ui/footer";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ModeToggle } from "@/components/ui/theme-toggle";
 import { Navbar } from "@/components/ui/navbar";
 import { UserAvatar } from "@/components/user-avatar";
-import { Suspense } from "react";
 import { Toaster } from "sonner";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,13 +38,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        {/* 明暗主题自适应 */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
+          <Suspense>
+            {/* 导航栏 */}
+            <div className="pt-4">
+              <Navbar />
+            </div>
 
           {/* 导航栏 */}
           <div className="pt-4">
@@ -54,29 +57,24 @@ export default function RootLayout({
             </Suspense>
           </div>
 
-          {/* 主题切换按钮 - 固定在坐上角 */}
-          <div className="fixed top-5 left-5 z-50">
-            <ModeToggle />
-          </div>
+            {/* 用户头像 & 登录按钮 - 固定在右上角 */}
+            <div className="fixed top-5 right-5 z-50">
+              <UserAvatar />
+            </div>
 
-          {/* 用户头像 & 登录按钮 - 固定在右上角 */}
-          <div className="fixed top-5 right-5 z-50">
-            <UserAvatar />
-          </div>
+            {/* 主要内容区域 */}
+            <div className="pt-5 min-h-screen flex flex-col">
+              <main className="flex-1">
+                {children}
+              </main>
+            </div>
 
-          {/* 主要内容区域，添加顶部间距避免被导航栏遮挡 */}
-          <div className="pt-5 min-h-screen flex flex-col">
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
+            {/* 页脚 */}
+            <Footer />
 
-          {/* 页脚 */}
-          <Footer />
-
-          {/* Toast 通知 */}
-          <Toaster richColors position="top-right" />
-
+            {/* Toast 通知 */}
+            <Toaster richColors position="top-right" />
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>

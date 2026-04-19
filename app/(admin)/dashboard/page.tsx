@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import { RiArrowRightLine } from "react-icons/ri";
 import { dashboard_items } from "@/app/resource/content";
+import { Suspense } from "react";
 
-export default async function DashboardHome() {
+// ─── 动态内容：需要鉴权获取用户名 ─────────────────────────
+async function DashboardContent() {
     const session = await auth.api.getSession({
         headers: await headers(),
     });
@@ -55,5 +57,20 @@ export default async function DashboardHome() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function DashboardHome() {
+    return (
+        <Suspense fallback={
+            <div className="space-y-8">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">加载中...</h1>
+                    <p className="text-muted-foreground mt-1">RadicalSMP 管理后台</p>
+                </div>
+            </div>
+        }>
+            <DashboardContent />
+        </Suspense>
     );
 }
