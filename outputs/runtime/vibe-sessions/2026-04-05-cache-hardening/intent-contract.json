@@ -1,0 +1,32 @@
+{
+  "run_id": "2026-04-05-cache-hardening",
+  "stage": "deep_interview",
+  "goal": "按 8 个已识别问题完成缓存整改，并按阶段验证提交",
+  "deliverable": [
+    "缓存整改需求冻结文档",
+    "分阶段执行计划文档",
+    "阶段性代码修复与重构",
+    "每阶段的验证结果与 Git 提交"
+  ],
+  "constraints": [
+    "仅在 refactor/cache 分支修改",
+    "按分类阶段串行执行",
+    "每个阶段完成后先验证再提交",
+    "不顺带改无关业务逻辑"
+  ],
+  "acceptance_criteria": [
+    "8 个问题都有明确处理策略并按阶段落地",
+    "阶段 1 至少修复 correctness 与边界问题",
+    "最终 bun run lint 通过",
+    "最终 bun run build 通过"
+  ],
+  "non_goals": [
+    "全量替换所有 unstable_cache",
+    "重构与缓存问题无关的页面或鉴权架构"
+  ],
+  "autonomy_mode": "interactive_governed",
+  "inferred_assumptions": [
+    "用户要求按计划直接实施，而不是只输出计划",
+    "用户允许在每个阶段完成后创建 Git 提交"
+  ]
+}

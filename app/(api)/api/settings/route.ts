@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { getSettingsMasked, setSetting } from "@/lib/settings";
+import { getSettingsMaskedCached, invalidateSettingsCache } from "@/lib/cache";
+import { setSetting } from "@/lib/settings";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const prefix = searchParams.get("prefix") || "ai.";
 
-    const settings = await getSettingsMasked(prefix);
+    const settings = await getSettingsMaskedCached(prefix);
     return NextResponse.json({ settings });
 }
 
@@ -60,6 +61,8 @@ export async function PUT(request: NextRequest) {
         }
         await setSetting(key, config.value, config.encrypted ?? false);
     }
+
+    invalidateSettingsCache();
 
     return NextResponse.json({ success: true });
 }

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { invalidateUserCache } from "@/lib/cache";
+import {
+    getUserRelatedCacheTargets,
+    invalidateUserCache,
+    invalidateUserRelatedContentCache,
+} from "@/lib/cache";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -84,8 +88,10 @@ export async function DELETE(
     const reqHeaders = await headers();
 
     try {
+        const cacheTargets = await getUserRelatedCacheTargets(userId);
         await auth.api.removeUser({ headers: reqHeaders, body: { userId } });
         invalidateUserCache();
+        invalidateUserRelatedContentCache(cacheTargets);
         return NextResponse.json({ success: true });
     } catch (err) {
         console.error("删除用户失败:", err);

@@ -1,7 +1,19 @@
-import { getPublishedPostBySlug, getPostMetadataBySlug } from "@/lib/cache";
+import {
+    getPublishedPostBySlug,
+    getPostMetadataBySlug,
+    getPublishedPostSlugs,
+} from "@/lib/cache";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BlogTableOfContents } from "@/components/blog-toc";
+
+export async function generateStaticParams() {
+    const posts = await getPublishedPostSlugs();
+
+    return posts.map((post) => ({
+        slug: post.slug,
+    }));
+}
 
 // ─── SEO 元数据 ──────────────────────────────────────────
 export async function generateMetadata(

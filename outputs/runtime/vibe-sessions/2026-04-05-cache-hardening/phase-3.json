@@ -1,0 +1,25 @@
+{
+  "run_id": "2026-04-05-cache-hardening",
+  "phase": 3,
+  "title": "维护性与一致性收口",
+  "status": "completed",
+  "completed_work": [
+    "新增集中式 CACHE_KEYS，统一后台 unstable_cache 的 keyParts 命名模式",
+    "博客、表单、审核、用户相关后台缓存入口改为使用统一的 keyParts 常量",
+    "后台单表单 GET 路由改为使用 getAdminFormById，不再与缓存设计分叉"
+  ],
+  "verification": {
+    "lint": {
+      "command": "bun run lint",
+      "result": "passed"
+    },
+    "build": {
+      "command": "bun run build",
+      "result": "passed"
+    }
+  },
+  "notes": [
+    "第三阶段曾暴露一次 keyParts 只读元组与 unstable_cache 签名不兼容的问题，已在同阶段修正为可变数组生成函数",
+    "后台单表单更新与删除路径仍保留直查，以避免把写前读取混入缓存语义"
+  ]
+}

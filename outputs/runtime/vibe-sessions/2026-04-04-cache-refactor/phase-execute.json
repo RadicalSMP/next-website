@@ -1,0 +1,29 @@
+{
+  "run_id": "2026-04-04-cache-refactor",
+  "stage": "execute",
+  "status": "completed",
+  "branch": "refactor/cache",
+  "completed_work": [
+    "将缓存实现统一收敛到 lib/cache/*，并通过 lib/*-cache.ts 兼容导出避免旧引用失效",
+    "在 next.config.ts 启用 cacheComponents",
+    "仅将公开纯读缓存迁移为 Cache Components：博客列表、博客详情、博客元数据、公开表单列表、公开表单详情",
+    "保留后台与审核相关缓存为 unstable_cache：后台文章、后台表单、表单提交、审核规则、审核列表、后台用户",
+    "修正 Next.js 16 Cache Components 兼容问题：后台鉴权布局增加 Suspense 边界，Footer 改为缓存组件，公开博客详情补 generateStaticParams，公开导航栏与动态表单页补 Suspense 边界"
+  ],
+  "verification": {
+    "lint": {
+      "command": "bun run lint",
+      "result": "passed"
+    },
+    "build": {
+      "command": "bun run build",
+      "result": "passed",
+      "mode": "escalated_outside_sandbox"
+    }
+  },
+  "notes": [
+    "没有直接复制 dev 分支的全量 cacheComponents 迁移",
+    "没有引入 Vercel worker workaround",
+    "布局与 Suspense 的额外改动属于启用 cacheComponents 后的必要兼容修正，不属于范围蔓延"
+  ]
+}

@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-});
+import {
+    getAdminInvitationCodes,
+    invalidateInvitationCodeCache,
+} from "@/lib/cache";
+import { pool } from "@/lib/db";
 
 /** 校验管理员身份 */
 async function requireAdmin() {
@@ -25,31 +25,7 @@ export async function GET() {
         return NextResponse.json({ error: "未授权" }, { status: 403 });
     }
 
-    const codesResult = await pool.query(
-        `SELECT * FROM "invitation_code" ORDER BY "createdAt" DESC`,
-    );
-
-    // 获取所有使用记录
-    const usagesResult = await pool.query(
-        `SELECT u.*, usr."name" as "userName" 
-         FROM "invitation_code_usage" u 
-         LEFT JOIN "user" usr ON u."userId" = usr."id"
-         ORDER BY u."usedAt" DESC`,
-    );
-
-    // 将使用记录按 codeId 分组
-    const usagesByCodeId: Record<string, typeof usagesResult.rows> = {};
-    for (const usage of usagesResult.rows) {
-        if (!usagesByCodeId[usage.codeId]) {
-            usagesByCodeId[usage.codeId] = [];
-        }
-        usagesByCodeId[usage.codeId].push(usage);
-    }
-
-    const codes = codesResult.rows.map((code) => ({
-        ...code,
-        usages: usagesByCodeId[code.id] || [],
-    }));
+    const codes = await getAdminInvitationCodes();
 
     return NextResponse.json({ codes });
 }
@@ -108,6 +84,8 @@ export async function POST(request: NextRequest) {
         [id],
     );
 
+    invalidateInvitationCodeCache();
+
     return NextResponse.json({ code: result.rows[0] }, { status: 201 });
 }
 
@@ -126,6 +104,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await pool.query(`DELETE FROM "invitation_code" WHERE "id" = $1`, [id]);
+    invalidateInvitationCodeCache();
 
     return NextResponse.json({ success: true });
 }

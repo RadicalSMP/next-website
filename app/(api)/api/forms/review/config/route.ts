@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
 import {
-    getReviewScoringRules,
+    getReviewConfig,
+    invalidateReviewConfigCache,
     invalidateReviewRulesCache,
 } from "@/lib/cache";
 
@@ -23,20 +24,7 @@ export async function GET() {
         return NextResponse.json({ error: "未授权" }, { status: 403 });
     }
 
-    const rules = await getReviewScoringRules("join-application");
-
-    // 同时返回表单字段定义（供前端配置客观题规则时使用）
-    let formFields: unknown[] = [];
-    try {
-        const formResult = await pool.query(
-            `SELECT fields FROM forms WHERE slug = 'join-application' LIMIT 1`,
-        );
-        if (formResult.rows.length > 0) {
-            formFields = formResult.rows[0].fields || [];
-        }
-    } catch {
-        // 忽略
-    }
+    const { rules, formFields } = await getReviewConfig("join-application");
 
     return NextResponse.json({ rules, formFields });
 }
@@ -81,6 +69,7 @@ export async function PUT(request: NextRequest) {
     );
 
     invalidateReviewRulesCache();
+    invalidateReviewConfigCache();
 
     return NextResponse.json({ success: true });
 }

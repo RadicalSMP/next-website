@@ -1,0 +1,25 @@
+{
+  "run_id": "2026-04-05-user-related-cache-invalidation",
+  "stage": "execute",
+  "status": "completed",
+  "branch": "refactor/cache",
+  "completed_work": [
+    "新增用户关联缓存目标采集函数，用于在删除用户前收集该用户已发布博客的 slug 清单",
+    "新增用户关联内容缓存失效函数，统一刷新博客、后台表单、表单提交和审核提交相关缓存",
+    "删除用户路径改为先采集缓存目标，再删除用户，删除成功后再执行内容缓存失效"
+  ],
+  "verification": {
+    "lint": {
+      "command": "bun run lint",
+      "result": "passed"
+    },
+    "build": {
+      "command": "bun run build",
+      "result": "passed"
+    }
+  },
+  "notes": [
+    "本次未扩大 setRole、ban、unban 的缓存失效范围",
+    "本次未处理表单本体变更和 review-rules/config 双入口问题"
+  ]
+}

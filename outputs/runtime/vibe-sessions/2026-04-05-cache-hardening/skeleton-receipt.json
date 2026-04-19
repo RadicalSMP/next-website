@@ -1,0 +1,14 @@
+{
+  "run_id": "2026-04-05-cache-hardening",
+  "stage": "skeleton_check",
+  "branch": "refactor/cache",
+  "base_branch": "dev",
+  "working_tree_dirty": false,
+  "docs_present": true,
+  "outputs_present": false,
+  "notes": [
+    "当前分支已完成第一轮 cache refactor，并具备 docs/plans 与 docs/requirements 基础设施",
+    "本轮任务聚焦缓存整改，不重新做全量缓存迁移",
+    "工作区当前干净，适合按阶段执行并分块提交"
+  ]
+}

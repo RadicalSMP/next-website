@@ -8,8 +8,8 @@ import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import { redirect } from "next/navigation";
-import { Toaster } from "sonner";
 import { Suspense } from "react";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,8 +21,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// ─── 鉴权守卫（动态组件，需在 Suspense 内） ──────────────
-async function AuthGuard({ children }: { children: React.ReactNode }) {
+function DashboardLayoutFallback() {
+    return (
+        <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+            正在加载后台...
+        </div>
+    );
+}
+
+async function DashboardAuthenticatedLayout({
+    children,
+}: Readonly<{
+    children: React.ReactNode;
+}>) {
     const session = await auth.api.getSession({
         headers: await headers(),
     });
@@ -35,7 +46,25 @@ async function AuthGuard({ children }: { children: React.ReactNode }) {
         return redirect("/");
     }
 
-    return <>{children}</>;
+    return (
+        <SidebarProvider>
+            <DashboardSidebar />
+
+            <SidebarInset>
+                <div className="fixed top-5 right-5 z-50">
+                    <ModeToggle />
+                </div>
+
+                <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+                    <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min">
+                        <div className="p-6">{children}</div>
+                    </div>
+                </div>
+
+                <Footer />
+            </SidebarInset>
+        </SidebarProvider>
+    );
 }
 
 export default function DashboardRootLayout({
@@ -51,38 +80,9 @@ export default function DashboardRootLayout({
                     defaultTheme="system"
                     enableSystem
                     disableTransitionOnChange>
-
-                    <Suspense fallback={
-                        <div className="flex items-center justify-center min-h-screen">
-                            <p className="text-muted-foreground">加载中...</p>
-                        </div>
-                    }>
-                        <AuthGuard>
-                            <SidebarProvider>
-                                <DashboardSidebar />
-
-                                {/* 主要内容区域 */}
-                                <SidebarInset>
-                                    <div className="fixed top-5 right-5 z-50">
-                                        <ModeToggle />
-                                    </div>
-
-                                    {/* 页面内容 */}
-                                    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-                                        <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min">
-                                            <div className="p-6">
-                                                {children}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* 页脚 */}
-                                    <Footer />
-                                </SidebarInset>
-                            </SidebarProvider>
-                        </AuthGuard>
+                    <Suspense fallback={<DashboardLayoutFallback />}>
+                        <DashboardAuthenticatedLayout>{children}</DashboardAuthenticatedLayout>
                     </Suspense>
-
                 </ThemeProvider>
                 <Toaster richColors position="top-right" />
             </body>

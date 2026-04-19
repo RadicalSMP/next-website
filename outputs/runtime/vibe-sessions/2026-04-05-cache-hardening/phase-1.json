@@ -1,0 +1,25 @@
+{
+  "run_id": "2026-04-05-cache-hardening",
+  "phase": 1,
+  "title": "正确性与边界修正",
+  "status": "completed",
+  "completed_work": [
+    "公开表单列表改为仅返回 public 与 authenticated 可见性的活跃表单，避免 members 表单在公开列表中泄露存在性",
+    "博客详情页的 generateStaticParams 改为使用独立的已发布 slug 清单读取函数，不再复用 LIMIT 20 的博客列表查询",
+    "getActiveForms 与 getReviewScoringRules 的异常处理改为仅对缺表场景保留兼容兜底，其他数据库异常继续抛出"
+  ],
+  "verification": {
+    "lint": {
+      "command": "bun run lint",
+      "result": "passed"
+    },
+    "build": {
+      "command": "bun run build",
+      "result": "passed"
+    }
+  },
+  "notes": [
+    "当前阶段未改变动态路由的 dynamicParams 默认行为",
+    "公开表单列表仍保留 authenticated 表单的可见性徽标，仅收紧 members 边界"
+  ]
+}
