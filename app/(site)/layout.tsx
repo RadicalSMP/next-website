@@ -50,13 +50,6 @@ export default function RootLayout({
               <Navbar />
             </div>
 
-          {/* 导航栏 */}
-          <div className="pt-4">
-            <Suspense fallback={<NavbarFallback />}>
-              <Navbar />
-            </Suspense>
-          </div>
-
             {/* 用户头像 & 登录按钮 - 固定在右上角 */}
             <div className="fixed top-5 right-5 z-50">
               <UserAvatar />
