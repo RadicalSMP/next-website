@@ -61,7 +61,10 @@ async function DashboardAuthenticatedLayout({
                     </div>
                 </div>
 
-                <Footer />
+                <Suspense>
+                    <Footer />
+                </Suspense>
+                
             </SidebarInset>
         </SidebarProvider>
     );
