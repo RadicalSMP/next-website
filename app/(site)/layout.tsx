@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 
-import { Footer } from "@/components/ui/footer";
+import { Footer } from "@/components/footer";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Navbar } from "@/components/ui/navbar";
+import { Navbar } from "@/components/navbar";
 import { UserAvatar } from "@/components/user-avatar";
 import { Toaster } from "sonner";
 import { Suspense } from "react";

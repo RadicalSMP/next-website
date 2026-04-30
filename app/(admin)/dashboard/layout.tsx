@@ -1,7 +1,7 @@
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Footer } from "@/components/ui/footer";
-import { ModeToggle } from "@/components/ui/theme-toggle";
+import { Footer } from "@/components/footer";
+import { ModeToggle } from "@/components/theme-toggle";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
