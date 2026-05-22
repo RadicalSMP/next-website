@@ -10,6 +10,7 @@ import { requestPasswordReset } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { translateErrorMessage } from "@/lib/utils";
 import Link from "next/link";
+import { AuthShell } from "@/components/auth-shell";
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState("");
@@ -35,8 +36,8 @@ export default function ForgotPassword() {
     };
 
     return (
-        <div className="flex justify-center items-center h-screen">
-            <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
+        <AuthShell title="找回账户访问权" description="输入注册邮箱，我们会发送重置链接，帮助你重新设置登录密码。">
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
                 <CardHeader>
                     <CardTitle className="text-lg md:text-xl">忘记密码</CardTitle>
                     <CardDescription className="text-xs md:text-sm">
@@ -89,6 +90,6 @@ export default function ForgotPassword() {
                     </p>
                 </CardFooter>
             </Card>
-        </div>
+        </AuthShell>
     );
 }

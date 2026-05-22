@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { translateErrorMessage } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { AuthShell } from "@/components/auth-shell";
 
 export default function ResetPassword() {
     return (
@@ -58,8 +59,8 @@ function ResetPasswordContent() {
 
     if (!token) {
         return (
-            <div className="flex justify-center items-center h-screen">
-                <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
+            <AuthShell title="重置链接无效" description="请重新申请密码重置邮件，确保使用最新邮件中的链接。">
+                <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
                     <CardHeader>
                         <CardTitle className="text-lg md:text-xl">链接无效</CardTitle>
                         <CardDescription className="text-xs md:text-sm">
@@ -72,13 +73,13 @@ function ResetPasswordContent() {
                         </Link>
                     </CardFooter>
                 </Card>
-            </div>
+            </AuthShell>
         );
     }
 
     return (
-        <div className="flex justify-center items-center h-screen">
-            <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
+        <AuthShell title="设置新的登录凭据" description="为你的 RadicalSMP 账户设置新密码，完成后即可返回登录。">
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
                 <CardHeader>
                     <CardTitle className="text-lg md:text-xl">重置密码</CardTitle>
                     <CardDescription className="text-xs md:text-sm">
@@ -129,6 +130,6 @@ function ResetPasswordContent() {
                     </p>
                 </CardFooter>
             </Card>
-        </div>
+        </AuthShell>
     );
 }

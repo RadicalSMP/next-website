@@ -14,6 +14,7 @@ import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { translateErrorMessage } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AuthShell } from "@/components/auth-shell";
 
 const COOLDOWN_KEY = "verify-email-cooldown-until";
 const COOLDOWN_SECONDS = 60;
@@ -81,10 +82,12 @@ function VerifyEmailContent() {
     };
 
     return (
-        <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
+        <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
             <CardHeader className="text-center">
                 <div className="flex justify-center mb-2">
-                    <MailCheck className="size-12 text-muted-foreground" />
+                    <div className="rounded-full border bg-background/80 p-3 shadow-sm">
+                        <MailCheck className="size-10 text-lime-600 dark:text-lime-400" />
+                    </div>
                 </div>
                 <CardTitle className="text-lg md:text-xl">验证您的邮箱</CardTitle>
                 <CardDescription className="text-xs md:text-sm">
@@ -140,10 +143,10 @@ function VerifyEmailContent() {
 
 export default function VerifyEmail() {
     return (
-        <div className="flex justify-center items-center h-screen">
+        <AuthShell title="完成邮箱验证" description="验证邮箱后，账户才能继续进入社区系统和后续审核流程。">
             <Suspense>
                 <VerifyEmailContent />
             </Suspense>
-        </div>
+        </AuthShell>
     );
 }

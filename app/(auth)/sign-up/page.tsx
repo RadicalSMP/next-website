@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { translateErrorMessage } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { RiArrowRightUpBoxLine } from "react-icons/ri";
+import { AuthShell } from "@/components/auth-shell";
 
 /** 密码强度规则 */
 const PASSWORD_RULES = [
@@ -122,8 +123,8 @@ export default function SignUp() {
     };
 
     return (
-        <div className="flex justify-center items-center h-screen">
-            <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
+        <AuthShell title="创建社区账户" description="通过邀请码完成注册，并绑定后续用于审核、通知和身份识别的邮箱信息。">
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
                 <CardHeader>
                     <CardTitle className="text-lg md:text-xl">注册</CardTitle>
                     <CardDescription className="text-xs md:text-sm">
@@ -335,7 +336,7 @@ export default function SignUp() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </AuthShell>
     );
 }
 

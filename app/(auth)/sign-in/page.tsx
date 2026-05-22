@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { translateErrorMessage } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AuthShell } from "@/components/auth-shell";
 
 export default function SignIn() {
     const [email, setEmail] = useState("");
@@ -21,8 +22,8 @@ export default function SignIn() {
     const router = useRouter();
 
     return (
-        <div className="flex justify-center items-center h-screen">
-            <Card className="z-50 rounded-md rounded-t-none max-w-md flex flex-1">
+        <AuthShell title="欢迎回来" description="登录 RadicalSMP 账户，继续处理表单、验证状态和社区相关事务。">
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
                 <CardHeader>
                     <CardTitle className="text-lg md:text-xl">登录</CardTitle>
                     <CardDescription className="text-xs md:text-sm">
@@ -127,6 +128,6 @@ export default function SignIn() {
                     </p>
                 </CardFooter>
             </Card>
-        </div>
+        </AuthShell>
     );
 }
