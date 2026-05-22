@@ -42,12 +42,16 @@ export default function RootLayout({
         >
             {/* 导航栏 */}
             <div className="pt-4">
-              <Navbar />
+              <Suspense fallback={null}>
+                <Navbar />
+              </Suspense>
             </div>
 
             {/* 用户头像 & 登录按钮 - 固定在右上角 */}
             <div className="fixed top-5 right-5 z-50">
-              <UserAvatar />
+              <Suspense fallback={null}>
+                <UserAvatar />
+              </Suspense>
             </div>
 
             {/* 主要内容区域 */}
