@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { Loader2, X, Check, Circle, TicketCheck } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
@@ -65,6 +65,18 @@ function getProgressColor(strength: number) {
     return "[&>[data-slot=progress-indicator]]:bg-green-500";
 }
 
+function subscribeToLocationChange() {
+    return () => {};
+}
+
+function getLocationSearch() {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return window.location.search;
+}
+
 export default function SignUp() {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
@@ -75,6 +87,22 @@ export default function SignUp() {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+
+    const locationSearch = useSyncExternalStore(
+        subscribeToLocationChange,
+        getLocationSearch,
+        () => "",
+    );
+    const lockedFields = useMemo(() => {
+        const params = new URLSearchParams(locationSearch);
+
+        return {
+            email: params.get("e")?.trim() || "",
+            invitationCode: params.get("i")?.trim() || "",
+        };
+    }, [locationSearch]);
+    const effectiveEmail = lockedFields.email || email;
+    const effectiveInvitationCode = lockedFields.invitationCode || invitationCode;
 
     // 密码强度评估
     const { passed: passwordChecks, isValid: isPasswordValid, strength: passwordStrength } =
@@ -128,7 +156,8 @@ export default function SignUp() {
                                 onChange={(e) => {
                                     setEmail(e.target.value);
                                 }}
-                                value={email}
+                                value={effectiveEmail}
+                                disabled={Boolean(lockedFields.email)}
                             />
                         </div>
                         <div className="grid gap-2">
@@ -244,14 +273,15 @@ export default function SignUp() {
                                 id="invitationCode"
                                 placeholder="请输入邀请码"
                                 required
-                                value={invitationCode}
+                                value={effectiveInvitationCode}
                                 onChange={(e) => setInvitationCode(e.target.value)}
+                                disabled={Boolean(lockedFields.invitationCode)}
                             />
                         </div>
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={loading || !isPasswordValid || password !== passwordConfirmation || !invitationCode.trim()}
+                            disabled={loading || !isPasswordValid || password !== passwordConfirmation || !effectiveInvitationCode.trim()}
                             onClick={async () => {
                                 if (!isPasswordValid) {
                                     toast.error("密码不满足强度要求");
@@ -262,14 +292,14 @@ export default function SignUp() {
                                     return;
                                 }
                                 await signUp.email({
-                                    email,
+                                    email: effectiveEmail,
                                     password,
                                     name: `${username}`,
                                     image: image ? await convertImageToBase64(image) : "",
                                     callbackURL: "/dashboard",
                                     fetchOptions: {
                                         body: {
-                                            invitationCode: invitationCode.trim(),
+                                            invitationCode: effectiveInvitationCode.trim(),
                                         },
                                         onResponse: () => {
                                             setLoading(false);
@@ -282,7 +312,7 @@ export default function SignUp() {
                                         },
                                         onSuccess: () => {
                                             toast.success("注册成功！请查看邮箱完成验证");
-                                            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+                                            router.push(`/verify-email?email=${encodeURIComponent(effectiveEmail)}`);
                                         },
                                     },
                                 });
