@@ -1,99 +1,160 @@
 "use client";
 
 import { famous } from "@/app/resource/content";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { HomeSpotlightCard } from "@/components/home-spotlight-card";
+import { Input } from "@/components/ui/input";
+import { Search, Sparkles } from "lucide-react";
 import Image from "next/image";
+import { useMemo, useState } from "react";
 
 export default function FameWall() {
-    const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
+    const [query, setQuery] = useState("");
 
-    const toggleCard = (index: number) => {
-        const newExpanded = new Set(expandedCards);
-        if (newExpanded.has(index)) {
-            newExpanded.delete(index);
-        } else {
-            newExpanded.add(index);
-        }
-        setExpandedCards(newExpanded);
-    };
+    const stats = useMemo(() => {
+        const total = famous.length;
+        const roles = new Set(famous.map((item) => item.role.split(" / ")[0]));
+        const tags = new Set(famous.flatMap((item) => item.tags));
+
+        return [
+            { label: "人物条目", value: total.toString(), desc: "当前名人堂收录成员" },
+            { label: "角色类别", value: roles.size.toString(), desc: "覆盖的主要职责分组" },
+            { label: "标签数量", value: tags.size.toString(), desc: "用于快速识别的身份标签" },
+        ];
+    }, []);
+
+    const filteredFamous = useMemo(() => {
+        const keyword = query.trim().toLowerCase();
+        if (!keyword) return famous;
+
+        return famous.filter((person) => {
+            return (
+                person.name.toLowerCase().includes(keyword) ||
+                person.desc.toLowerCase().includes(keyword)
+            );
+        });
+    }, [query]);
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-center mb-2">冥人唐</h1>
-                <p className="text-center text-muted-foreground">展示服内名人</p>
-            </div>
+        <div className="min-h-screen bg-background text-foreground">
+            <section className="relative isolate overflow-hidden border-b px-4 py-12 sm:px-6 lg:px-8">
+                <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_18%,rgba(132,204,22,0.16),transparent_28%),radial-gradient(circle_at_78%_12%,rgba(14,165,233,0.14),transparent_25%),linear-gradient(180deg,transparent,rgba(0,0,0,0.03))] dark:bg-[radial-gradient(circle_at_12%_18%,rgba(132,204,22,0.18),transparent_28%),radial-gradient(circle_at_78%_12%,rgba(14,165,233,0.14),transparent_25%),linear-gradient(180deg,transparent,rgba(255,255,255,0.03))]" />
+                <div className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18] [background-image:linear-gradient(to_right,currentColor_1px,transparent_1px),linear-gradient(to_bottom,currentColor_1px,transparent_1px)] [background-size:44px_44px] text-foreground/30 [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {famous.map((person, index) => {
-                    const isExpanded = expandedCards.has(index);
-
-                    return (
-                        <div
-                            key={index}
-                            className="bg-card border border-border rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
-                        >
-                            {/* 头像区域 */}
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted border border-border flex items-center justify-center">
-                                        <Image
-                                            src={`https://mc-heads.net/avatar/${person.mcid}/64`}
-                                            alt={`${person.name} 的头像`}
-                                            width={64}
-                                            height={64}
-                                            className="w-full h-full object-cover"
-                                            unoptimized
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-bold text-lg text-card-foreground">{person.name}</h3>
-                                        <p className="text-sm text-muted-foreground mb-1">{person.mcid}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {person.role}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    onClick={() => toggleCard(index)}
-                                    className="text-muted-foreground hover:text-foreground"
-                                >
-                                    {isExpanded ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                        <ChevronDown className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            </div>
-
-                            {/* 标签 */}
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {person.tags.map((tag, tagIndex) => (
-                                    <span
-                                        key={tagIndex}
-                                        className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-xs"
-                                    >
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-
-                            {/* 描述文本 - 可展开/收起 */}
-                            {isExpanded && (
-                                <div className="bg-muted rounded-lg p-4 animate-in slide-in-from-top-2 duration-200">
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        {person.desc}
-                                    </p>
-                                </div>
-                            )}
+                <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+                    <div className="max-w-3xl">
+                        <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-sm text-muted-foreground backdrop-blur">
+                            <Sparkles className="size-4 text-lime-500" />
+                            服内人物档案
                         </div>
-                    );
-                })}
-            </div>
+                        <h1 className="text-4xl font-semibold tracking-normal sm:text-5xl">
+                            冥人唐
+                        </h1>
+                        <p className="mt-4 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
+                            收录在 RadicalSMP 中承担管理、建设、维护与协作职责的成员。当前内容保持占位结构，后续可继续补充正式介绍、贡献记录和人物故事。
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                        {stats.map((item) => (
+                            <div key={item.label} className="rounded-lg border bg-background/80 p-4 shadow-sm backdrop-blur">
+                                <p className="text-xs text-muted-foreground">{item.label}</p>
+                                <p className="mt-2 text-3xl font-semibold">{item.value}</p>
+                                <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            <section className="px-4 py-10 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-6xl">
+                    <HomeSpotlightCard highlight="rgba(14, 165, 233, 0.18)">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="text-2xl font-semibold">名人堂检索</h2>
+                                <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
+                                    仅支持按用户名和简介搜索，方便快速定位成员。
+                                </p>
+                            </div>
+                            <div className="w-full md:max-w-sm">
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={query}
+                                        onChange={(e) => setQuery(e.target.value)}
+                                        placeholder="搜索用户名或简介"
+                                        className="pl-9"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </HomeSpotlightCard>
+                </div>
+            </section>
+
+            <section className="px-4 pb-16 sm:px-6 lg:px-8">
+                <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {filteredFamous.map((person) => {
+                        const preview =
+                            person.desc.length > 72 ? `${person.desc.slice(0, 72)}...` : person.desc;
+
+                        return (
+                            <HomeSpotlightCard
+                                key={person.mcid}
+                                highlight="rgba(132, 204, 22, 0.14)"
+                                className="min-h-[18rem]"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex min-w-0 items-center gap-4">
+                                        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border bg-muted shadow-sm">
+                                            <Image
+                                                src={`https://mc-heads.net/avatar/${person.mcid}/64`}
+                                                alt={`${person.name} 的头像`}
+                                                width={64}
+                                                height={64}
+                                                className="size-full object-cover"
+                                                unoptimized
+                                            />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="truncate text-lg font-semibold text-card-foreground">
+                                                {person.name}
+                                            </h3>
+                                            <p className="truncate text-sm text-muted-foreground">
+                                                {person.mcid}
+                                            </p>
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {person.role}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 flex flex-wrap gap-2">
+                                    {person.tags.map((tag) => (
+                                        <span
+                                            key={tag}
+                                            className="rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground"
+                                        >
+                                            {tag}
+                                        </span>
+                                    ))}
+                                </div>
+
+                                <div className="mt-5 rounded-lg border bg-background/60 p-4">
+                                    <p className="text-sm leading-7 text-muted-foreground">{preview}</p>
+                                </div>
+                            </HomeSpotlightCard>
+                        );
+                    })}
+
+                    {filteredFamous.length === 0 && (
+                        <div className="rounded-lg border bg-background p-8 text-center text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+                            没有找到匹配的成员。
+                        </div>
+                    )}
+                </div>
+            </section>
         </div>
     );
 }
