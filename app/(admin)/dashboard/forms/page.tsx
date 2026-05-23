@@ -1,53 +1,29 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { toast } from "sonner";
-import {
-    Loader2,
-    Plus,
-    Trash2,
-    Pencil,
-    Eye,
-    FileText,
-    Copy,
-    ClipboardList,
-} from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ClipboardList, Copy, Eye, FileText, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
-/* ─── 类型定义 ─────────────────────────────────────────────── */
-
-interface FormItem {
+type FormItem = {
     id: string;
     title: string;
     description: string | null;
     slug: string;
-    fields: unknown[];
     visibility: string;
-    status: string;
+    status: "draft" | "published" | "archived";
     created_by_name: string | null;
     created_at: string;
     updated_at: string;
     submission_count: number;
-}
-
-/* ─── 主组件 ─────────────────────────────────────────────── */
+    current_version: number | null;
+    last_submitted_at: string | null;
+};
 
 export default function FormsManagePage() {
     const [forms, setForms] = useState<FormItem[]>([]);
@@ -70,11 +46,11 @@ export default function FormsManagePage() {
     }, [fetchForms]);
 
     const handleDelete = async (id: string, title: string) => {
-        if (!confirm(`确认删除表单「${title}」？关联的所有提交记录也会被删除。`)) return;
+        if (!confirm(`确认删除表单「${title}」？关联的提交记录也会一起删除。`)) return;
         try {
             const res = await fetch(`/api/forms/${id}`, { method: "DELETE" });
+            const data = await res.json();
             if (!res.ok) {
-                const data = await res.json();
                 toast.error(data.error || "删除失败");
                 return;
             }
@@ -85,54 +61,45 @@ export default function FormsManagePage() {
         }
     };
 
-    const handleToggleStatus = async (id: string, currentStatus: string) => {
-        const newStatus = currentStatus === "active" ? "closed" : "active";
-        try {
-            const res = await fetch(`/api/forms/${id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus }),
-            });
-            if (!res.ok) {
-                const data = await res.json();
-                toast.error(data.error || "操作失败");
-                return;
-            }
-            toast.success(newStatus === "active" ? "已开启" : "已关闭");
-            fetchForms();
-        } catch {
-            toast.error("操作失败");
-        }
-    };
-
-    const copyFormUrl = (slug: string) => {
-        const url = `${window.location.origin}/forms/${slug}`;
-        navigator.clipboard.writeText(url);
+    const copyFormUrl = async (slug: string) => {
+        await navigator.clipboard.writeText(`${window.location.origin}/forms/${slug}`);
         toast.success("表单链接已复制");
     };
 
-    const visibilityLabel = (v: string) => {
-        switch (v) {
-            case "public": return "公开";
-            case "authenticated": return "登录可见";
-            case "members": return "指定成员";
-            default: return v;
+    const visibilityLabel = (value: string) => {
+        switch (value) {
+            case "public":
+                return "公开";
+            case "authenticated":
+                return "登录可见";
+            case "members":
+                return "指定成员";
+            default:
+                return value;
+        }
+    };
+
+    const statusBadge = (status: FormItem["status"]) => {
+        switch (status) {
+            case "published":
+                return <Badge>已发布</Badge>;
+            case "archived":
+                return <Badge variant="secondary">已归档</Badge>;
+            default:
+                return <Badge variant="outline">草稿</Badge>;
         }
     };
 
     return (
         <div className="space-y-6">
-            {/* 页面标题 */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">表单管理</h1>
-                    <p className="text-muted-foreground mt-1">
-                        创建和管理自定义表单
-                    </p>
+                    <p className="mt-1 text-muted-foreground">创建、编辑和发布表单</p>
                 </div>
                 <Button asChild>
                     <Link href="/dashboard/forms/new">
-                        <Plus className="size-4 mr-1.5" />
+                        <Plus className="size-4" />
                         创建表单
                     </Link>
                 </Button>
@@ -140,24 +107,23 @@ export default function FormsManagePage() {
 
             <Separator />
 
-            {/* 表单列表 */}
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>表单名称</TableHead>
+                            <TableHead>表单</TableHead>
                             <TableHead>slug</TableHead>
                             <TableHead>可见性</TableHead>
                             <TableHead>状态</TableHead>
+                            <TableHead>版本</TableHead>
                             <TableHead>提交数</TableHead>
-                            <TableHead>创建时间</TableHead>
-                            <TableHead className="w-[180px]">操作</TableHead>
+                            <TableHead>操作</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="py-8">
+                                <TableCell colSpan={7} className="py-10">
                                     <div className="flex justify-center">
                                         <Loader2 className="size-6 animate-spin text-muted-foreground" />
                                     </div>
@@ -167,80 +133,43 @@ export default function FormsManagePage() {
                             <TableRow>
                                 <TableCell colSpan={7} className="py-12">
                                     <div className="flex flex-col items-center justify-center text-center">
-                                        <FileText className="size-12 text-muted-foreground mb-4" />
+                                        <FileText className="mb-4 size-12 text-muted-foreground" />
                                         <p className="text-muted-foreground">暂无表单</p>
-                                        <p className="text-muted-foreground text-sm">
-                                            点击右上角按钮创建第一个表单
-                                        </p>
                                     </div>
                                 </TableCell>
                             </TableRow>
                         ) : (
                             forms.map((form) => (
                                 <TableRow key={form.id}>
-                                    {/* 名称 */}
                                     <TableCell>
                                         <div>
                                             <p className="font-medium">{form.title}</p>
                                             {form.description && (
-                                                <p className="text-xs text-muted-foreground line-clamp-1">
-                                                    {form.description}
-                                                </p>
+                                                <p className="line-clamp-1 text-xs text-muted-foreground">{form.description}</p>
                                             )}
                                         </div>
                                     </TableCell>
-
-                                    {/* slug */}
                                     <TableCell>
                                         <div className="flex items-center gap-1">
-                                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                                                {form.slug}
-                                            </code>
+                                            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{form.slug}</code>
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="size-6"
-                                                            onClick={() => copyFormUrl(form.slug)}
-                                                        >
+                                                        <Button variant="ghost" size="icon" className="size-6" onClick={() => copyFormUrl(form.slug)}>
                                                             <Copy className="size-3" />
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>复制表单链接</TooltipContent>
+                                                    <TooltipContent>复制链接</TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </div>
                                     </TableCell>
-
-                                    {/* 可见性 */}
                                     <TableCell>
-                                        <Badge variant="outline">
-                                            {visibilityLabel(form.visibility)}
-                                        </Badge>
+                                        <Badge variant="outline">{visibilityLabel(form.visibility)}</Badge>
                                     </TableCell>
-
-                                    {/* 状态 */}
-                                    <TableCell>
-                                        <Badge
-                                            variant={form.status === "active" ? "default" : "secondary"}
-                                            className="cursor-pointer"
-                                            onClick={() => handleToggleStatus(form.id, form.status)}
-                                        >
-                                            {form.status === "active" ? "活跃" : "已关闭"}
-                                        </Badge>
-                                    </TableCell>
-
-                                    {/* 提交数 */}
+                                    <TableCell>{statusBadge(form.status)}</TableCell>
+                                    <TableCell>{form.current_version ? `v${form.current_version}` : "-"}</TableCell>
                                     <TableCell>{form.submission_count}</TableCell>
-
-                                    {/* 创建时间 */}
-                                    <TableCell className="text-muted-foreground">
-                                        {new Date(form.created_at).toLocaleDateString("zh-CN")}
-                                    </TableCell>
-
-                                    {/* 操作 */}
                                     <TableCell>
                                         <div className="flex items-center gap-1">
                                             <TooltipProvider>
@@ -255,7 +184,6 @@ export default function FormsManagePage() {
                                                     <TooltipContent>查看提交</TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -268,7 +196,6 @@ export default function FormsManagePage() {
                                                     <TooltipContent>预览表单</TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -281,7 +208,6 @@ export default function FormsManagePage() {
                                                     <TooltipContent>编辑表单</TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>

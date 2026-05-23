@@ -188,6 +188,25 @@ function normalizeOptions(rawOptions: unknown): FormFieldOption[] {
         .filter((item): item is FormFieldOption => item !== null);
 }
 
+function normalizeDefaultValueByType(
+    type: FormFieldType,
+    value: unknown,
+): string | number | boolean | null {
+    switch (type) {
+        case "number":
+            return typeof value === "number"
+                ? value
+                : typeof value === "string" && value.trim().length > 0
+                    ? Number(value)
+                    : "";
+        case "checkbox":
+        case "toggle":
+            return typeof value === "boolean" ? value : Boolean(value);
+        default:
+            return normalizeDefaultValue(value);
+    }
+}
+
 export function normalizeFormField(raw: unknown, index = 0): FormField {
     const base = isRecord(raw) ? raw : {};
     const label = coerceString(base.label, "").trim();
@@ -204,7 +223,7 @@ export function normalizeFormField(raw: unknown, index = 0): FormField {
         enabled: coerceBoolean(base.enabled, true),
         placeholder: coerceString(base.placeholder, "").trim(),
         helpText: coerceString(base.helpText, "").trim(),
-        defaultValue: normalizeDefaultValue(base.defaultValue),
+        defaultValue: normalizeDefaultValueByType(type, base.defaultValue),
         options,
         validation: isRecord(base.validation)
             ? {
@@ -263,7 +282,7 @@ export function validateFormVersionPayload(raw: unknown) {
     }
 
     for (const field of fields) {
-        if (["radio", "checkbox", "select"].includes(field.type) && (field.options ?? []).length === 0) {
+        if (["radio", "select"].includes(field.type) && (field.options ?? []).length === 0) {
             return { ok: false as const, error: `字段「${field.label}」需要至少一个选项` };
         }
     }
