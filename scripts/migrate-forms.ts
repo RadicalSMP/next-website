@@ -1,94 +1,119 @@
 /**
- * 通用表单系统迁移脚本
+ * 表单系统破坏性迁移脚本
  *
  * 用法: bun run scripts/migrate-forms.ts
  *
- * 创建两张表:
- *   - forms: 表单定义表（字段结构、可见性等）
- *   - form_submissions: 表单提交记录表（含客户端元数据）
+ * 当前项目处于 dev 阶段，本脚本会重建表单相关表：
+ *   - forms: 表单主表
+ *   - form_versions: 发布版本快照
+ *   - form_submissions: 提交记录
  */
 
 import { Pool } from "pg";
 
 async function migrate() {
     if (!process.env.DATABASE_URL) {
-        console.error("❌ 缺少 DATABASE_URL 环境变量");
+        console.error("缺少 DATABASE_URL 环境变量");
         process.exit(1);
     }
 
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-    console.log("🔄 开始创建表单系统相关表...\n");
+    console.log("开始重建表单系统表...");
 
-    // ─── 表单定义表 ────────────────────────────────────────
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS "forms" (
-            "id"                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "title"             TEXT NOT NULL,
-            "description"       TEXT,
-            "slug"              VARCHAR(64) UNIQUE NOT NULL,
-            "fields"            JSONB NOT NULL DEFAULT '[]',
-            "visibility"        TEXT NOT NULL DEFAULT 'public',
-            "allowed_user_ids"  TEXT[] DEFAULT '{}',
-            "status"            TEXT NOT NULL DEFAULT 'active',
-            "created_by"        TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-            "created_at"        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            "updated_at"        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-    `);
-    console.log("  ✅ forms 表已创建");
+    await pool.query("BEGIN");
 
-    // ─── 表单提交记录表 ────────────────────────────────────
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS "form_submissions" (
-            "id"            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "form_id"       UUID NOT NULL REFERENCES "forms"("id") ON DELETE CASCADE,
-            "user_id"       TEXT REFERENCES "user"("id") ON DELETE SET NULL,
-            "user_email"    TEXT,
-            "data"          JSONB NOT NULL DEFAULT '{}',
-            "ip_address"    TEXT,
-            "user_agent"    TEXT,
-            "fingerprint"   TEXT,
-            "duration"      INTEGER,
-            "created_at"    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-    `);
-    console.log("  ✅ form_submissions 表已创建");
-
-    // ─── 增量迁移：为已有表添加新列（安全幂等） ────────────
-    const addColumnIfNotExists = async (table: string, column: string, type: string) => {
+    try {
         await pool.query(`
-            DO $$ BEGIN
-                ALTER TABLE "${table}" ADD COLUMN "${column}" ${type};
-            EXCEPTION
-                WHEN duplicate_column THEN NULL;
-            END $$;
+            DROP TABLE IF EXISTS "submission_reviews" CASCADE;
+            DROP TABLE IF EXISTS "submission_scores" CASCADE;
+            DROP TABLE IF EXISTS "review_scoring_rules" CASCADE;
+            DROP TABLE IF EXISTS "form_submissions" CASCADE;
+            DROP TABLE IF EXISTS "form_versions" CASCADE;
+            DROP TABLE IF EXISTS "forms" CASCADE;
         `);
-    };
 
-    await addColumnIfNotExists("form_submissions", "ip_address", "TEXT");
-    await addColumnIfNotExists("form_submissions", "user_agent", "TEXT");
-    await addColumnIfNotExists("form_submissions", "fingerprint", "TEXT");
-    await addColumnIfNotExists("form_submissions", "duration", "INTEGER");
-    console.log("  ✅ 元数据列已确认存在");
+        await pool.query(`
+            CREATE TABLE "forms" (
+                "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                "title" TEXT NOT NULL,
+                "description" TEXT,
+                "slug" VARCHAR(96) UNIQUE NOT NULL,
+                "visibility" TEXT NOT NULL DEFAULT 'public'
+                    CHECK ("visibility" IN ('public', 'authenticated', 'members')),
+                "allowed_user_ids" TEXT[] NOT NULL DEFAULT '{}',
+                "status" TEXT NOT NULL DEFAULT 'draft'
+                    CHECK ("status" IN ('draft', 'published', 'archived')),
+                "draft_payload" JSONB NOT NULL DEFAULT '{}',
+                "current_version_id" UUID,
+                "created_by" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+                "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
 
-    // ─── 索引 ──────────────────────────────────────────────
-    await pool.query(`
-        CREATE INDEX IF NOT EXISTS "idx_forms_slug" ON "forms"("slug");
-    `);
-    await pool.query(`
-        CREATE INDEX IF NOT EXISTS "idx_forms_status" ON "forms"("status");
-    `);
-    await pool.query(`
-        CREATE INDEX IF NOT EXISTS "idx_form_submissions_form_id" ON "form_submissions"("form_id");
-    `);
-    console.log("  ✅ 索引已创建");
+        await pool.query(`
+            CREATE TABLE "form_versions" (
+                "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                "form_id" UUID NOT NULL REFERENCES "forms"("id") ON DELETE CASCADE,
+                "version" INTEGER NOT NULL,
+                "title" TEXT NOT NULL,
+                "description" TEXT,
+                "fields" JSONB NOT NULL DEFAULT '[]',
+                "settings" JSONB NOT NULL DEFAULT '{}',
+                "published_by" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+                "published_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE ("form_id", "version")
+            );
+        `);
 
-    await pool.end();
-    console.log("\n🎉 表单系统表迁移完成！");
+        await pool.query(`
+            ALTER TABLE "forms"
+            ADD CONSTRAINT "forms_current_version_id_fkey"
+            FOREIGN KEY ("current_version_id") REFERENCES "form_versions"("id") ON DELETE SET NULL;
+        `);
+
+        await pool.query(`
+            CREATE TABLE "form_submissions" (
+                "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                "form_id" UUID NOT NULL REFERENCES "forms"("id") ON DELETE CASCADE,
+                "form_version_id" UUID NOT NULL REFERENCES "form_versions"("id") ON DELETE RESTRICT,
+                "user_id" TEXT REFERENCES "user"("id") ON DELETE SET NULL,
+                "user_email" TEXT,
+                "data" JSONB NOT NULL DEFAULT '{}',
+                "field_snapshot" JSONB NOT NULL DEFAULT '[]',
+                "status" TEXT NOT NULL DEFAULT 'submitted'
+                    CHECK ("status" IN ('submitted', 'flagged', 'archived')),
+                "ip_address" TEXT,
+                "user_agent" TEXT,
+                "fingerprint" TEXT,
+                "duration" INTEGER,
+                "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
+
+        await pool.query(`
+            CREATE INDEX "idx_forms_slug" ON "forms"("slug");
+            CREATE INDEX "idx_forms_status" ON "forms"("status");
+            CREATE INDEX "idx_forms_current_version_id" ON "forms"("current_version_id");
+            CREATE INDEX "idx_form_versions_form_id" ON "form_versions"("form_id");
+            CREATE INDEX "idx_form_submissions_form_id" ON "form_submissions"("form_id");
+            CREATE INDEX "idx_form_submissions_version_id" ON "form_submissions"("form_version_id");
+            CREATE INDEX "idx_form_submissions_status" ON "form_submissions"("status");
+            CREATE INDEX "idx_form_submissions_created_at" ON "form_submissions"("created_at" DESC);
+        `);
+
+        await pool.query("COMMIT");
+        console.log("表单系统表重建完成");
+    } catch (error) {
+        await pool.query("ROLLBACK");
+        throw error;
+    } finally {
+        await pool.end();
+    }
 }
 
-migrate().catch((err) => {
-    console.error("❌ 迁移失败:", err);
+migrate().catch((error) => {
+    console.error("迁移失败:", error);
     process.exit(1);
 });

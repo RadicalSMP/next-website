@@ -6,6 +6,7 @@ export const CACHE_KEYS = {
     ADMIN_BLOG_LIST: createCacheKey("cache", "blog", "admin-list"),
     ADMIN_FORM_LIST: createCacheKey("cache", "form", "admin-list"),
     ADMIN_FORM_DETAIL: createCacheKey("cache", "form", "admin-detail"),
+    FORM_VERSION_LIST: createCacheKey("cache", "form", "version-list"),
     FORM_SUBMISSION_LIST: createCacheKey("cache", "form", "submission-list"),
     REVIEW_RULES: createCacheKey("cache", "review", "rules"),
     REVIEW_CONFIG: createCacheKey("cache", "review", "config"),
