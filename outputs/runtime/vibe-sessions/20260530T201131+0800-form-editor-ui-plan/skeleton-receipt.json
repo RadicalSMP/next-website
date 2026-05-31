@@ -1,0 +1,27 @@
+{
+  "runId": "20260530T201131+0800-form-editor-ui-plan",
+  "stage": "skeleton_check",
+  "createdAt": "2026-05-30T20:11:31+08:00",
+  "branch": "refactor/form",
+  "workspace": "C:\\rsmp_projects\\next-website",
+  "observedStatus": {
+    "hasUncommittedChanges": true,
+    "note": "工作区已有上一轮表单修复的未提交改动，本次计划不得回滚或覆盖。"
+  },
+  "relevantFiles": [
+    "components/form-builder.tsx",
+    "app/(admin)/dashboard/forms/page.tsx",
+    "app/(admin)/dashboard/forms/new/page.tsx",
+    "app/(admin)/dashboard/forms/[id]/edit/page.tsx",
+    "app/(api)/api/forms/route.ts",
+    "app/(api)/api/forms/[id]/route.ts",
+    "app/(api)/api/forms/[id]/publish/route.ts",
+    "lib/forms.ts"
+  ],
+  "runtimeDecision": {
+    "mode": "interactive_governed",
+    "internalGrade": "L",
+    "stopStage": "xl_plan",
+    "implementationStarted": false
+  }
+}

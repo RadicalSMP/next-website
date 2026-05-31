@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
@@ -49,89 +49,167 @@ function generateFingerprint(): string {
     return Math.abs(hash).toString(36);
 }
 
-function renderPreviewValue(field: FormField, value: unknown, onChange: (next: unknown) => void) {
+function renderPreviewValue(
+    field: FormField,
+    value: unknown,
+    onChange: (next: unknown) => void,
+    inputId: string,
+) {
     switch (field.type) {
         case "textarea":
-            return <Textarea value={String(value ?? "")} placeholder={field.placeholder || ""} onChange={(event) => onChange(event.target.value)} rows={4} />;
+            return (
+                <Textarea
+                    id={inputId}
+                    name={field.key}
+                    value={String(value ?? "")}
+                    placeholder={field.placeholder || ""}
+                    onChange={(event) => onChange(event.target.value)}
+                    onInput={(event) => onChange(event.currentTarget.value)}
+                    rows={4}
+                />
+            );
         case "number":
-            return <Input type="number" value={String(value ?? "")} placeholder={field.placeholder || ""} onChange={(event) => onChange(event.target.value)} />;
+            return (
+                <Input
+                    id={inputId}
+                    name={field.key}
+                    type="number"
+                    value={String(value ?? "")}
+                    placeholder={field.placeholder || ""}
+                    onChange={(event) => onChange(event.target.value)}
+                    onInput={(event) => onChange(event.currentTarget.value)}
+                />
+            );
         case "date":
-            return <Input type="date" value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} />;
-        case "checkbox":
+            return (
+                <Input
+                    id={inputId}
+                    name={field.key}
+                    type="date"
+                    value={String(value ?? "")}
+                    onChange={(event) => onChange(event.target.value)}
+                    onInput={(event) => onChange(event.currentTarget.value)}
+                />
+            );
+        case "checkbox": {
+            const selectedValues = Array.isArray(value) ? value.map(String) : [];
+            return (
+                <div className="grid gap-2">
+                    {(field.options ?? []).map((option, optionIndex) => {
+                        const optionId = `${inputId}-option-${optionIndex}`;
+                        const checked = selectedValues.includes(option.value);
+                        return (
+                            <div key={option.value} className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                    id={optionId}
+                                    name={field.key}
+                                    checked={checked}
+                                    onCheckedChange={(nextChecked) => {
+                                        onChange(
+                                            nextChecked
+                                                ? [...selectedValues, option.value]
+                                                : selectedValues.filter((item) => item !== option.value),
+                                        );
+                                    }}
+                                />
+                                <Label htmlFor={optionId}>{option.label}</Label>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
         case "toggle":
             return (
                 <div className="flex items-center gap-2">
-                    <Checkbox checked={Boolean(value)} onCheckedChange={(checked) => onChange(Boolean(checked))} />
-                    <span className="text-sm text-muted-foreground">{field.helpText || field.label}</span>
+                    <Checkbox id={inputId} name={field.key} checked={Boolean(value)} onCheckedChange={(checked) => onChange(Boolean(checked))} />
+                    <Label htmlFor={inputId} className="text-sm font-normal text-muted-foreground">
+                        {field.helpText || field.label}
+                    </Label>
                 </div>
             );
         case "radio":
-        case "select":
             return (
                 <div className="grid gap-2">
-                    {(field.options ?? []).map((option) => (
-                        <label key={option.value} className="flex items-center gap-2 text-sm">
-                            <input
-                                type={field.type === "radio" ? "radio" : "radio"}
-                                name={field.key}
-                                checked={String(value ?? "") === option.value}
-                                onChange={() => onChange(option.value)}
-                            />
-                            <span>{option.label}</span>
-                        </label>
-                    ))}
+                    {(field.options ?? []).map((option, optionIndex) => {
+                        const optionId = `${inputId}-option-${optionIndex}`;
+                        return (
+                            <div key={option.value} className="flex items-center gap-2 text-sm">
+                                <input
+                                    id={optionId}
+                                    name={field.key}
+                                    type="radio"
+                                    checked={String(value ?? "") === option.value}
+                                    onChange={() => onChange(option.value)}
+                                />
+                                <Label htmlFor={optionId} className="font-normal">
+                                    {option.label}
+                                </Label>
+                            </div>
+                        );
+                    })}
                 </div>
             );
+        case "select":
+            return (
+                <select
+                    id={inputId}
+                    name={field.key}
+                    className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={typeof value === "string" ? value : ""}
+                    onChange={(event) => onChange(event.target.value)}
+                >
+                    <option value="" disabled>
+                        {field.placeholder || "请选择"}
+                    </option>
+                    {(field.options ?? []).map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
+                    </select>
+            );
         default:
-            return <Input value={String(value ?? "")} placeholder={field.placeholder || ""} onChange={(event) => onChange(event.target.value)} />;
+            return (
+                <Input
+                    id={inputId}
+                    name={field.key}
+                    value={String(value ?? "")}
+                    placeholder={field.placeholder || ""}
+                    onChange={(event) => onChange(event.target.value)}
+                    onInput={(event) => onChange(event.currentTarget.value)}
+                />
+            );
     }
 }
 
-export function FormFillClient({ slug }: { slug: string }) {
-    const [form, setForm] = useState<FormData | null>(null);
-    const [loading, setLoading] = useState(true);
+type FormFillClientProps = {
+    initialForm: FormData | null;
+    initialError?: string | null;
+};
+
+export function FormFillClient({ initialForm, initialError = null }: FormFillClientProps) {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [values, setValues] = useState<Record<string, unknown>>({});
-    const startTimeRef = useRef(0);
-
-    const fetchForm = useCallback(async () => {
-        try {
-            const res = await fetch(`/api/forms/by-slug/${encodeURIComponent(slug)}`);
-            const data = await res.json();
-            if (!res.ok) {
-                setError(data.error || "表单不存在");
-                return;
-            }
-            setForm(data.form);
-            setValues(buildSubmissionDefaults(data.form.fields));
-            startTimeRef.current = Date.now();
-        } catch {
-            setError("加载表单失败");
-        } finally {
-            setLoading(false);
-        }
-    }, [slug]);
-
-    useEffect(() => {
-        fetchForm();
-    }, [fetchForm]);
+    const [values, setValues] = useState<Record<string, unknown>>(() => (
+        initialForm ? buildSubmissionDefaults(initialForm.fields) : {}
+    ));
+    const startTimeRef = useRef(Date.now());
 
     const updateValue = (key: string, value: unknown) => {
         setValues((prev) => ({ ...prev, [key]: value }));
     };
 
-    const submitLabel = useMemo(() => form?.settings?.submitLabel || "提交表单", [form]);
-    const successMessage = useMemo(() => form?.settings?.successMessage || "提交成功，感谢你的填写。", [form]);
+    const submitLabel = useMemo(() => initialForm?.settings?.submitLabel || "提交表单", [initialForm]);
+    const successMessage = useMemo(() => initialForm?.settings?.successMessage || "提交成功，感谢你的填写。", [initialForm]);
 
     const handleSubmit = async () => {
-        if (!form) return;
+        if (!initialForm) return;
 
         setSubmitting(true);
         try {
             const duration = startTimeRef.current ? Math.round((Date.now() - startTimeRef.current) / 1000) : null;
-            const res = await fetch(`/api/forms/${form.id}/submissions`, {
+            const res = await fetch(`/api/forms/${initialForm.id}/submissions`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -154,21 +232,13 @@ export function FormFillClient({ slug }: { slug: string }) {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex justify-center py-20">
-                <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
-        );
-    }
-
-    if (error) {
+    if (initialError) {
         return (
             <div className="container mx-auto max-w-2xl px-4 py-20 text-center">
                 <FileText className="mx-auto mb-4 size-16 text-muted-foreground" />
                 <h1 className="mb-2 text-2xl font-bold">无法访问表单</h1>
-                <p className="mb-6 text-muted-foreground">{error}</p>
-                {error.includes("登录") ? (
+                <p className="mb-6 text-muted-foreground">{initialError}</p>
+                {initialError.includes("登录") ? (
                     <Button asChild>
                         <Link href="/sign-in">去登录</Link>
                     </Button>
@@ -194,24 +264,29 @@ export function FormFillClient({ slug }: { slug: string }) {
         );
     }
 
-    if (!form) return null;
+    if (!initialForm) return null;
 
     return (
         <div className="container mx-auto max-w-2xl px-4 py-12">
             <div className="mb-8 rounded-lg border bg-muted/20 p-5">
-                <h1 className="text-2xl font-bold">{form.title}</h1>
-                {form.description && <p className="mt-2 text-muted-foreground">{form.description}</p>}
-                {form.settings?.introText && <p className="mt-4 text-sm text-muted-foreground">{form.settings.introText}</p>}
+                <h1 className="text-2xl font-bold">{initialForm.title}</h1>
+                {initialForm.description && <p className="mt-2 text-muted-foreground">{initialForm.description}</p>}
+                {initialForm.settings?.introText && <p className="mt-4 text-sm text-muted-foreground">{initialForm.settings.introText}</p>}
             </div>
             <Separator className="mb-8" />
             <div className="space-y-6">
-                {form.fields.filter((field) => field.enabled).map((field) => (
+                {initialForm.fields.filter((field) => field.enabled).map((field) => (
                     <div key={field.key} className="grid gap-2">
-                        <Label htmlFor={field.key}>
+                        <Label htmlFor={`form-field-${field.key}`}>
                             {field.label}
                             {field.required && <span className="ml-1 text-destructive">*</span>}
                         </Label>
-                        {renderPreviewValue(field, values[field.key], (next) => updateValue(field.key, next))}
+                        {renderPreviewValue(
+                            field,
+                            values[field.key],
+                            (next) => updateValue(field.key, next),
+                            `form-field-${field.key}`,
+                        )}
                         {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
                     </div>
                 ))}

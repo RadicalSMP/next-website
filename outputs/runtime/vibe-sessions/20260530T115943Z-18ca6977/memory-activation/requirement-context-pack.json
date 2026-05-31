@@ -1,0 +1,34 @@
+{
+  "stage": "requirement_doc",
+  "source_stage": "bounded_memory_recall",
+  "owner": "state_store",
+  "disclosure_level": "decision_focused",
+  "generated_at": "2026-05-30T11:59:54Z",
+  "capsule_count": 1,
+  "selected_capsules": [
+    {
+      "capsule_id": "46f548d1aa977343",
+      "owner": "Cognee",
+      "lane": "cognee",
+      "kind": "entity_relation_ingest",
+      "updated_at": "2026-05-03T09:33:08Z",
+      "title": "Cognee relation: fix-a-slug-article-content-display-issue-deliverable-governed-im specified_by 2026-05-03-fix-a-slug-article-content-display...",
+      "why_now": "Matched Cognee memory for requirement_doc.",
+      "expansion_ref": "C:\\rsmp_projects\\next-website\\outputs\\runtime\\vibe-sessions\\20260530T115943Z-18ca6977\\memory-backend\\cognee-read-response.json#46f548d1aa977343",
+      "summary_lines": [
+        "Cognee relation: fix-a-slug-article-content-display-issue-deliverable-governed-im specified_by 2026-05-03-fix-a-slug-article-content-display-issue-deliverable-governed-im.md",
+        "specified_by"
+      ]
+    }
+  ],
+  "items": [
+    "Cognee relation: fix-a-slug-article-content-display-issue-deliverable-governed-im specified_by 2026-05-03-fix-a-slug-article-content-display-issue-deliverable-governed-im.md",
+    "specified_by"
+  ],
+  "estimated_tokens": 47,
+  "budget": {
+    "top_k": 2,
+    "max_tokens": 120,
+    "max_chars_per_item": 260
+  }
+}

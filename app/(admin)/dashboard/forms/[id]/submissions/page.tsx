@@ -24,6 +24,7 @@ type Submission = {
     user_name: string | null;
     user_image: string | null;
     data: Record<string, unknown>;
+    field_snapshot?: FormField[];
     ip_address: string | null;
     user_agent: string | null;
     fingerprint: string | null;
@@ -39,6 +40,24 @@ type FormInfo = {
     fields: FormField[];
     current_version: number | null;
 };
+
+const emptyStats = {
+    total: 0,
+    submitted_count: 0,
+    flagged_count: 0,
+    archived_count: 0,
+    last_submitted_at: null,
+};
+
+function formatFieldValue(field: FormField, value: unknown) {
+    if (field.type === "checkbox") {
+        return Array.isArray(value) && value.length > 0 ? value.join("、") : "-";
+    }
+    if (field.type === "toggle") {
+        return value ? "是" : "否";
+    }
+    return String(value ?? "-");
+}
 
 function formatDuration(seconds: number) {
     if (seconds < 60) return `${seconds} 秒`;
@@ -57,12 +76,7 @@ export default function FormSubmissionsPage() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [query, setQuery] = useState("");
     const [status, setStatus] = useState("all");
-    const [stats, setStats] = useState<{ submitted_count: number; flagged_count: number; archived_count: number; last_submitted_at: string | null }>({
-        submitted_count: 0,
-        flagged_count: 0,
-        archived_count: 0,
-        last_submitted_at: null,
-    });
+    const [stats, setStats] = useState<{ total: number; submitted_count: number; flagged_count: number; archived_count: number; last_submitted_at: string | null }>(emptyStats);
     const limit = 20;
 
     const fetchFormInfo = useCallback(async () => {
@@ -70,7 +84,13 @@ export default function FormSubmissionsPage() {
             const res = await fetch(`/api/forms/${params.id}`);
             const data = await res.json();
             if (res.ok) {
-                setFormInfo(data.form);
+                const form = data.form;
+                setFormInfo({
+                    id: form.id,
+                    title: form.title,
+                    fields: form.draft_payload?.fields || form.current_fields || [],
+                    current_version: form.current_version,
+                });
             }
         } catch {
             // ignore
@@ -89,13 +109,13 @@ export default function FormSubmissionsPage() {
             const data = await res.json();
             setSubmissions(data.submissions || []);
             setTotal(data.total || 0);
-            setStats(data.stats || stats);
+            setStats(data.stats || emptyStats);
         } catch {
             toast.error("获取提交列表失败");
         } finally {
             setLoading(false);
         }
-    }, [page, params.id, query, status, stats]);
+    }, [page, params.id, query, status]);
 
     useEffect(() => {
         fetchFormInfo();
@@ -133,7 +153,7 @@ export default function FormSubmissionsPage() {
             <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-md border p-4">
                     <p className="text-sm text-muted-foreground">总提交</p>
-                    <p className="mt-2 text-2xl font-semibold">{total}</p>
+                    <p className="mt-2 text-2xl font-semibold">{stats.total}</p>
                 </div>
                 <div className="rounded-md border p-4">
                     <p className="text-sm text-muted-foreground">最近提交</p>
@@ -150,7 +170,12 @@ export default function FormSubmissionsPage() {
             <Separator />
 
             <div className="flex flex-wrap gap-2">
+                <label htmlFor="submission-search" className="sr-only">
+                    搜索提交记录
+                </label>
                 <input
+                    id="submission-search"
+                    name="submission-search"
                     className="h-10 min-w-64 rounded-md border bg-background px-3 text-sm"
                     placeholder="搜索邮箱、姓名或内容"
                     value={query}
@@ -159,7 +184,12 @@ export default function FormSubmissionsPage() {
                         setQuery(event.target.value);
                     }}
                 />
+                <label htmlFor="submission-status" className="sr-only">
+                    筛选提交状态
+                </label>
                 <select
+                    id="submission-status"
+                    name="submission-status"
                     className="h-10 rounded-md border bg-background px-3 text-sm"
                     value={status}
                     onChange={(event) => {
@@ -207,6 +237,7 @@ export default function FormSubmissionsPage() {
                         ) : (
                             submissions.map((submission) => {
                                 const isExpanded = expandedId === submission.id;
+                                const fields = submission.field_snapshot || formInfo?.fields || [];
                                 return (
                                     <Fragment key={submission.id}>
                                         <TableRow>
@@ -236,13 +267,11 @@ export default function FormSubmissionsPage() {
                                                         <div>
                                                             <p className="mb-2 text-xs font-medium text-muted-foreground">提交内容</p>
                                                             <div className="grid gap-2">
-                                                                {formInfo?.fields.map((field) => (
+                                                                {fields.map((field) => (
                                                                     <div key={field.key} className="flex gap-3 rounded bg-background px-3 py-2 text-sm">
                                                                         <span className="min-w-[120px] shrink-0 font-medium text-muted-foreground">{field.label}：</span>
                                                                         <span className="break-all whitespace-pre-wrap text-foreground">
-                                                                            {field.type === "checkbox"
-                                                                                ? submission.data[field.key] ? "是" : "否"
-                                                                                : String(submission.data[field.key] ?? "-")}
+                                                                            {formatFieldValue(field, submission.data[field.key])}
                                                                         </span>
                                                                     </div>
                                                                 ))}

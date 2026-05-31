@@ -35,7 +35,7 @@ export interface FormField {
     enabled: boolean;
     placeholder?: string | null;
     helpText?: string | null;
-    defaultValue?: string | number | boolean | null;
+    defaultValue?: string | number | boolean | string[] | null;
     options?: FormFieldOption[];
     validation?: FormFieldValidation;
 }
@@ -100,7 +100,7 @@ export function slugifyFormKey(value: string) {
 
 export function createEmptyFormField(index = 0): FormField {
     return {
-        key: `field_${Date.now()}_${index}`,
+        key: `field_${index + 1}`,
         label: "",
         type: "text",
         required: false,
@@ -149,7 +149,10 @@ function coerceNumber(value: unknown) {
     return undefined;
 }
 
-function normalizeDefaultValue(value: unknown): string | number | boolean | null {
+function normalizeDefaultValue(value: unknown): string | number | boolean | string[] | null {
+    if (Array.isArray(value)) {
+        return value.filter((item): item is string => typeof item === "string");
+    }
     if (
         typeof value === "string" ||
         typeof value === "number" ||
@@ -191,7 +194,7 @@ function normalizeOptions(rawOptions: unknown): FormFieldOption[] {
 function normalizeDefaultValueByType(
     type: FormFieldType,
     value: unknown,
-): string | number | boolean | null {
+): string | number | boolean | string[] | null {
     switch (type) {
         case "number":
             return typeof value === "number"
@@ -200,6 +203,9 @@ function normalizeDefaultValueByType(
                     ? Number(value)
                     : "";
         case "checkbox":
+            return Array.isArray(value)
+                ? value.filter((item): item is string => typeof item === "string")
+                : [];
         case "toggle":
             return typeof value === "boolean" ? value : Boolean(value);
         default:
@@ -282,7 +288,7 @@ export function validateFormVersionPayload(raw: unknown) {
     }
 
     for (const field of fields) {
-        if (["radio", "select"].includes(field.type) && (field.options ?? []).length === 0) {
+        if (["radio", "checkbox", "select"].includes(field.type) && (field.options ?? []).length === 0) {
             return { ok: false as const, error: `字段「${field.label}」需要至少一个选项` };
         }
     }
@@ -348,7 +354,7 @@ export function validateFormBasePayload(raw: unknown) {
 }
 
 export function buildSubmissionDefaults(fields: FormField[]) {
-    const values: Record<string, string | number | boolean> = {};
+    const values: Record<string, string | number | boolean | string[]> = {};
     for (const field of fields) {
         if (field.defaultValue !== undefined && field.defaultValue !== null) {
             values[field.key] = field.defaultValue;
@@ -356,6 +362,8 @@ export function buildSubmissionDefaults(fields: FormField[]) {
         }
         switch (field.type) {
             case "checkbox":
+                values[field.key] = [];
+                break;
             case "toggle":
                 values[field.key] = false;
                 break;
@@ -371,13 +379,17 @@ export function buildSubmissionDefaults(fields: FormField[]) {
 }
 
 export function validateSubmissionValues(fields: FormField[], data: Record<string, unknown>) {
-    const normalized: Record<string, string | number | boolean | null> = {};
+    const normalized: Record<string, string | number | boolean | string[] | null> = {};
 
     for (const field of fields.filter((item) => item.enabled)) {
         const value = data[field.key];
 
         if (field.required) {
-            if (field.type === "checkbox" || field.type === "toggle") {
+            if (field.type === "checkbox") {
+                if (!Array.isArray(value) || value.length === 0) {
+                    return { ok: false as const, error: `「${field.label}」为必填项` };
+                }
+            } else if (field.type === "toggle") {
                 if (value !== true) {
                     return { ok: false as const, error: `「${field.label}」为必填项` };
                 }
@@ -387,7 +399,11 @@ export function validateSubmissionValues(fields: FormField[], data: Record<strin
         }
 
         if (value === undefined || value === null || String(value).trim() === "") {
-            normalized[field.key] = field.type === "checkbox" || field.type === "toggle" ? false : "";
+            normalized[field.key] = field.type === "checkbox"
+                ? []
+                : field.type === "toggle"
+                    ? false
+                    : "";
             continue;
         }
 
@@ -400,7 +416,18 @@ export function validateSubmissionValues(fields: FormField[], data: Record<strin
                 normalized[field.key] = parsed;
                 break;
             }
-            case "checkbox":
+            case "checkbox": {
+                const rawValues = Array.isArray(value) ? value.map(String) : [String(value)];
+                const allowedValues = (field.options ?? []).map((option) => option.value);
+                if (
+                    allowedValues.length > 0 &&
+                    rawValues.some((item) => !allowedValues.includes(item))
+                ) {
+                    return { ok: false as const, error: `「${field.label}」的取值无效` };
+                }
+                normalized[field.key] = rawValues;
+                break;
+            }
             case "toggle":
                 normalized[field.key] = Boolean(value);
                 break;

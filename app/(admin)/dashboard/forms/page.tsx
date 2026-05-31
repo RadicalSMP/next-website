@@ -98,7 +98,7 @@ export default function FormsManagePage() {
                     <p className="mt-1 text-muted-foreground">创建、编辑和发布表单</p>
                 </div>
                 <Button asChild>
-                    <Link href="/dashboard/forms/new">
+                    <Link href="/dashboard/forms/new" target="_blank" rel="noreferrer">
                         <Plus className="size-4" />
                         创建表单
                     </Link>
@@ -200,7 +200,7 @@ export default function FormsManagePage() {
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="size-8" asChild>
-                                                            <Link href={`/dashboard/forms/${form.id}/edit`}>
+                                                            <Link href={`/dashboard/forms/${form.id}/edit`} target="_blank" rel="noreferrer">
                                                                 <Pencil className="size-4" />
                                                             </Link>
                                                         </Button>

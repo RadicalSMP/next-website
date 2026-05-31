@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "status": "backend_read",
+  "lane": "cognee",
+  "store_path": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills\\memory\\workspace-memory-plane.jsonl",
+  "project_key": "vibe",
+  "project_key_source": "workspace_plane",
+  "item_count": 2,
+  "items": [
+    "Cognee relation: fix-a-slug-article-content-display-issue-deliverable-governed-im specified_by 2026-05-03-fix-a-slug-article-content-display-issue-deliverable-governed-im.md",
+    "Cognee relation: fix-a-slug-article-content-display-issue-deliverable-governed-im planned_in 2026-05-03-fix-a-slug-article-content-display-issue-deliverable-governed-im-execution-plan.md"
+  ],
+  "capsule_count": 2,
+  "capsules": [
+    {
+      "capsule_id": "46f548d1aa977343",
+      "owner": "Cognee",
+      "lane": "cognee",
+      "kind": "entity_relation_ingest",
+      "disclosure_level": "bounded",
+      "summary": "specified_by",
+      "updated_at": "2026-05-03T09:33:08Z"
+    },
+    {
+      "capsule_id": "da4c95604621b4ca",
+      "owner": "Cognee",
+      "lane": "cognee",
+      "kind": "entity_relation_ingest",
+      "disclosure_level": "bounded",
+      "summary": "planned_in",
+      "updated_at": "2026-05-03T09:33:08Z"
+    }
+  ],
+  "suppressed_count": 0,
+  "workspace_memory_plane": {
+    "schema_version": 1,
+    "workspace_root": "C:\\Users\\85472\\.claude\\skills\\vibe",
+    "workspace_sidecar_root": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills",
+    "descriptor_path": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills\\project.json",
+    "workspace_id": "ws:4ee535d75fa0c6eee6eee154",
+    "plane_path": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills\\memory\\workspace-memory-plane.jsonl"
+  },
+  "driver_mode": "compatibility_shell",
+  "generated_at": "2026-05-30T11:59:46Z"
+}

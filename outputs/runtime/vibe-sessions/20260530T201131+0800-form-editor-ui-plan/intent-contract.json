@@ -1,0 +1,32 @@
+{
+  "runId": "20260530T201131+0800-form-editor-ui-plan",
+  "stage": "deep_interview",
+  "createdAt": "2026-05-30T20:11:31+08:00",
+  "goal": "重构后台表单编辑器前端体验，参考 Google Docs 等成熟文档产品，让编辑器更易用且支持自动保存。",
+  "deliverable": "完整需求文档与执行计划；后续实现时保持 URL 为 /dashboard/forms/new 和 /dashboard/forms/[id]/edit，但编辑页无 dashboard sidebar。",
+  "constraints": [
+    "后端代码尽可能不变动。",
+    "本轮只改后台表单编辑器和表单列表入口。",
+    "自动保存采用本地立即保存、合法时同步服务器的策略。",
+    "不提交代码，除非用户后续明确同意。",
+    "不回滚当前工作区已有未提交改动。"
+  ],
+  "acceptanceCriteria": [
+    "计划文档明确阶段、任务、验收、回滚和验证命令。",
+    "需求文档冻结目标、约束、非目标和验收标准。",
+    "计划解释如何在同 URL 下实现无 sidebar 编辑器。",
+    "计划不要求数据库或 API 重构。"
+  ],
+  "nonGoals": [
+    "不重做公开填写页。",
+    "不重做提交管理页。",
+    "不实现审核评分。",
+    "不新增表结构。"
+  ],
+  "autonomyMode": "interactive_governed",
+  "assumptions": [
+    "可以通过 Next.js route group 迁移实现同 URL 下的不同 layout。",
+    "现有 forms API 足以支撑自动保存、发布和成员搜索。",
+    "用户会在计划确认后再要求实现。"
+  ]
+}

@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "bun run scripts/seed.ts",
+    "seed:join-form": "bun run scripts/seed-join-form.ts",
+    "migrate:forms": "bun run scripts/migrate-forms.ts",
     "migrate:blog": "bun run scripts/migrate-blog.ts"
   },
   "dependencies": {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getFormBySlug } from "@/lib/cache";
+import { normalizeFormFields } from "@/lib/forms";
 
 export async function GET(
     _request: NextRequest,
@@ -38,7 +39,7 @@ export async function GET(
             visibility: form.visibility,
             versionId: form.version_id,
             version: form.version,
-            fields: form.fields,
+            fields: normalizeFormFields(form.fields),
             settings: form.settings,
         },
     });
