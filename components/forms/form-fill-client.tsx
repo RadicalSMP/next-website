@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,8 @@ type FormData = {
         introText?: string;
     };
 };
+
+type FormFillMode = "submit" | "preview";
 
 function generateFingerprint(): string {
     const components = [
@@ -122,9 +125,14 @@ function renderPreviewValue(
         case "toggle":
             return (
                 <div className="flex items-center gap-2">
-                    <Checkbox id={inputId} name={field.key} checked={Boolean(value)} onCheckedChange={(checked) => onChange(Boolean(checked))} />
+                    <Checkbox
+                        id={inputId}
+                        name={field.key}
+                        checked={Boolean(value)}
+                        onCheckedChange={(checked) => onChange(Boolean(checked))}
+                    />
                     <Label htmlFor={inputId} className="text-sm font-normal text-muted-foreground">
-                        {field.helpText || field.label}
+                        {field.helpText || field.label || "启用"}
                     </Label>
                 </div>
             );
@@ -167,7 +175,7 @@ function renderPreviewValue(
                             {option.label}
                         </option>
                     ))}
-                    </select>
+                </select>
             );
         default:
             return (
@@ -186,9 +194,16 @@ function renderPreviewValue(
 type FormFillClientProps = {
     initialForm: FormData | null;
     initialError?: string | null;
+    mode?: FormFillMode;
+    previewLabel?: string;
 };
 
-export function FormFillClient({ initialForm, initialError = null }: FormFillClientProps) {
+export function FormFillClient({
+    initialForm,
+    initialError = null,
+    mode = "submit",
+    previewLabel = "预览模式",
+}: FormFillClientProps) {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [values, setValues] = useState<Record<string, unknown>>(() => (
@@ -204,7 +219,7 @@ export function FormFillClient({ initialForm, initialError = null }: FormFillCli
     const successMessage = useMemo(() => initialForm?.settings?.successMessage || "提交成功，感谢你的填写。", [initialForm]);
 
     const handleSubmit = async () => {
-        if (!initialForm) return;
+        if (!initialForm || mode === "preview") return;
 
         setSubmitting(true);
         try {
@@ -266,33 +281,49 @@ export function FormFillClient({ initialForm, initialError = null }: FormFillCli
 
     if (!initialForm) return null;
 
+    const visibleFields = initialForm.fields.filter((field) => field.enabled);
+
     return (
         <div className="container mx-auto max-w-2xl px-4 py-12">
             <div className="mb-8 rounded-lg border bg-muted/20 p-5">
-                <h1 className="text-2xl font-bold">{initialForm.title}</h1>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <h1 className="min-w-0 text-2xl font-bold">{initialForm.title}</h1>
+                    {mode === "preview" && <Badge variant="secondary">{previewLabel}</Badge>}
+                </div>
                 {initialForm.description && <p className="mt-2 text-muted-foreground">{initialForm.description}</p>}
                 {initialForm.settings?.introText && <p className="mt-4 text-sm text-muted-foreground">{initialForm.settings.introText}</p>}
             </div>
             <Separator className="mb-8" />
             <div className="space-y-6">
-                {initialForm.fields.filter((field) => field.enabled).map((field) => (
-                    <div key={field.key} className="grid gap-2">
-                        <Label htmlFor={`form-field-${field.key}`}>
-                            {field.label}
-                            {field.required && <span className="ml-1 text-destructive">*</span>}
-                        </Label>
-                        {renderPreviewValue(
-                            field,
-                            values[field.key],
-                            (next) => updateValue(field.key, next),
-                            `form-field-${field.key}`,
-                        )}
-                        {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+                {visibleFields.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                        当前没有启用的题目。
                     </div>
-                ))}
+                ) : (
+                    visibleFields.map((field, index) => (
+                        <div key={field.key || index} className="grid gap-2">
+                            <Label htmlFor={`form-field-${field.key || index}`}>
+                                {field.label || `未命名题目 ${index + 1}`}
+                                {field.required && <span className="ml-1 text-destructive">*</span>}
+                            </Label>
+                            {renderPreviewValue(
+                                field,
+                                values[field.key],
+                                (next) => updateValue(field.key, next),
+                                `form-field-${field.key || index}`,
+                            )}
+                            {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+                        </div>
+                    ))
+                )}
                 <div className="pt-2">
-                    <Button className="w-full" size="lg" disabled={submitting} onClick={handleSubmit}>
-                        {submitting ? <Loader2 className="size-4 animate-spin" /> : submitLabel}
+                    <Button
+                        className="w-full"
+                        size="lg"
+                        disabled={submitting || mode === "preview"}
+                        onClick={handleSubmit}
+                    >
+                        {submitting ? <Loader2 className="size-4 animate-spin" /> : mode === "preview" ? previewLabel : submitLabel}
                     </Button>
                 </div>
             </div>

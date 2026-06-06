@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
     cloneFormField,
     createEmptyFormField,
+    createUntitledFormSlug,
     DEFAULT_FORM_SETTINGS,
     FormField,
     FormFieldOption,
@@ -13,6 +14,7 @@ import {
     FormSettings,
     FormStatus,
     FormVisibility,
+    normalizeFormSlug,
 } from "@/lib/forms";
 import {
     fieldHasOptions,
@@ -31,11 +33,7 @@ import {
 } from "./types";
 
 function formatSlug(value: string) {
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9-]+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
+    return normalizeFormSlug(value);
 }
 
 function makeField(index: number, type: FormFieldType = "text"): FormField {
@@ -116,23 +114,36 @@ function getPayloadSnapshot(payload: FormEditorPayload): string {
     return stableStringify(normalizePayload(payload));
 }
 
-function getServerBlockReason(payload: FormEditorPayload) {
+function normalizeDraftPayload(payload: FormEditorPayload, fallbackSlug?: string): FormEditorPayload {
     const normalized = normalizePayload(payload);
-    if (!normalized.title) return "填写表单标题后同步服务器";
-    if (!normalized.slug) return "填写访问标识后同步服务器";
-    if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(normalized.slug)) {
-        return "访问标识只能包含小写字母、数字和连字符";
+    return {
+        ...normalized,
+        slug: normalized.slug || fallbackSlug || createUntitledFormSlug(),
+        fields: normalized.fields.length > 0 ? normalized.fields : [makeField(0)],
+    };
+}
+
+function resolveDraftSlug(payload: FormEditorPayload, fallbackSlugRef: { current: string | null }) {
+    const normalizedSlug = formatSlug(payload.slug);
+    if (normalizedSlug) {
+        fallbackSlugRef.current = normalizedSlug;
+        return normalizedSlug;
     }
-    if (normalized.fields.length === 0) return "至少需要一个字段";
-    if (normalized.fields.some((field) => !field.label)) return "补全字段标题后同步服务器";
-    if (normalized.fields.some((field) => !field.key)) return "补全字段 key 后同步服务器";
+
+    if (!fallbackSlugRef.current) {
+        fallbackSlugRef.current = createUntitledFormSlug();
+    }
+    return fallbackSlugRef.current;
+}
+
+function replaceEditorUrl(id: string) {
+    if (typeof window === "undefined") return;
+    window.history.replaceState(null, "", `/dashboard/forms/${id}/edit`);
+}
+
+function getServerBlockReason(payload: FormEditorPayload, fallbackSlug?: string) {
+    const normalized = normalizeDraftPayload(payload, fallbackSlug);
     if (hasDuplicateKeys(normalized.fields)) return "字段 key 不能重复";
-    const invalidOptionField = normalized.fields.find(
-        (field) => fieldHasOptions(field.type) && (field.options ?? []).length === 0,
-    );
-    if (invalidOptionField) {
-        return `字段「${invalidOptionField.label || invalidOptionField.key}」需要至少一个选项`;
-    }
     return null;
 }
 
@@ -298,6 +309,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
     const latestPayloadRef = useRef<FormEditorPayload | null>(null);
     const lastSyncedSnapshotRef = useRef<string | null>(null);
     const slugManuallyEditedRef = useRef(false);
+    const generatedDraftSlugRef = useRef<string | null>(null);
 
     const selectedField = fields[selectedIndex] ?? fields[0] ?? null;
 
@@ -326,6 +338,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
         setDescription(normalized.description || "");
         setSlugState(normalized.slug || "");
         slugManuallyEditedRef.current = Boolean(normalized.slug);
+        generatedDraftSlugRef.current = normalized.slug || generatedDraftSlugRef.current;
         setVisibility(normalized.visibility || "public");
         setStatus(normalized.status || "draft");
         setAllowedUserIds(normalized.allowedUserIds || []);
@@ -348,8 +361,10 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             const form = data.form;
             const draft = form.draft_payload || {};
             const loadedPayload: FormEditorPayload = {
-                title: form.title || "",
-                description: form.description || null,
+                title: typeof draft.title === "string" ? draft.title : "",
+                description: typeof draft.description === "string" || draft.description === null
+                    ? draft.description
+                    : form.description || null,
                 slug: form.slug || "",
                 visibility: form.visibility || "public",
                 status: form.status || "draft",
@@ -405,6 +420,8 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
         const localDraft = readLocalDraft(getDraftKey(null));
         if (localDraft) {
             setPendingLocalDraft(localDraft);
+        } else if (latestPayloadRef.current) {
+            lastSyncedSnapshotRef.current = getPayloadSnapshot(latestPayloadRef.current);
         }
     }, [formId, loadForm, mode]);
 
@@ -412,7 +429,8 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
         const currentPayload = latestPayloadRef.current;
         if (!currentPayload) return null;
 
-        const normalizedPayload = normalizePayload(currentPayload);
+        const draftSlug = resolveDraftSlug(currentPayload, generatedDraftSlugRef);
+        const normalizedPayload = normalizeDraftPayload(currentPayload, draftSlug);
         const snapshot = getPayloadSnapshot(normalizedPayload);
         if (lastSyncedSnapshotRef.current === snapshot) {
             setSaveState("synced");
@@ -420,7 +438,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             return activeFormId;
         }
 
-        const blockReason = getServerBlockReason(currentPayload);
+        const blockReason = getServerBlockReason(currentPayload, draftSlug);
         if (blockReason) {
             setSaveState("validation_blocked");
             setSaveMessage(blockReason);
@@ -452,13 +470,25 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             }
 
             const nextId = data.form.id as string;
+            const savedSlug = typeof data.form.slug === "string" ? data.form.slug : normalizedPayload.slug;
+            const syncedPayload = {
+                ...normalizedPayload,
+                slug: savedSlug,
+            };
+            const syncedSnapshot = getPayloadSnapshot(syncedPayload);
             const syncedAt = Date.now();
             setLastSyncedAt(syncedAt);
             setSaveState("synced");
             setSaveMessage("已同步服务器");
-            lastSyncedSnapshotRef.current = snapshot;
+            lastSyncedSnapshotRef.current = syncedSnapshot;
+            if (!currentPayload.slug && savedSlug) {
+                skipNextDraftWriteRef.current = true;
+                setSlugState(savedSlug);
+                slugManuallyEditedRef.current = false;
+                generatedDraftSlugRef.current = savedSlug;
+            }
             writeLocalDraft(getDraftKey(nextId), {
-                payload: normalizedPayload,
+                payload: syncedPayload,
                 updatedAt: syncedAt,
                 syncedAt,
                 formId: nextId,
@@ -468,7 +498,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
                 removeLocalDraft(getDraftKey(null));
                 setActiveMode("edit");
                 setActiveFormId(nextId);
-                router.replace(`/dashboard/forms/${nextId}/edit`);
+                replaceEditorUrl(nextId);
             }
 
             if (showToast) {
@@ -481,7 +511,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             if (showToast) toast.error("保存失败");
             return null;
         }
-    }, [activeFormId, activeMode, router]);
+    }, [activeFormId, activeMode]);
 
     useEffect(() => {
         if (!hydratedRef.current || loading || pendingLocalDraft) return;
@@ -741,14 +771,14 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             if (activeMode === "create") {
                 setActiveMode("edit");
                 setActiveFormId(id);
-                router.replace(`/dashboard/forms/${id}/edit`);
+                replaceEditorUrl(id);
             }
         } catch {
             toast.error("发布失败");
         } finally {
             setPublishing(false);
         }
-    }, [activeFormId, activeMode, payload, persistToServer, router]);
+    }, [activeFormId, activeMode, payload, persistToServer]);
 
     const publishIssues = useMemo(() => getPublishIssues(payload), [payload]);
 

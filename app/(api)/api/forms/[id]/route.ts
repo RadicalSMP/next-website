@@ -9,8 +9,8 @@ import {
 } from "@/lib/cache";
 import {
     DEFAULT_FORM_SETTINGS,
-    validateFormBasePayload,
-    validateFormVersionPayload,
+    normalizeDraftFormBasePayload,
+    normalizeDraftFormVersionPayload,
 } from "@/lib/forms";
 
 async function requireAdmin() {
@@ -72,7 +72,7 @@ export async function PUT(
         return NextResponse.json({ error: "表单不存在" }, { status: 404 });
     }
 
-    const baseResult = validateFormBasePayload({
+    const baseResult = normalizeDraftFormBasePayload({
         ...body,
         status: body.status || "draft",
     });
@@ -80,7 +80,7 @@ export async function PUT(
         return NextResponse.json({ error: baseResult.error }, { status: 400 });
     }
 
-    const versionResult = validateFormVersionPayload({
+    const versionResult = normalizeDraftFormVersionPayload({
         title: body.title,
         description: body.description ?? null,
         fields: body.fields ?? [],

@@ -55,6 +55,7 @@ export function FormEditorShell(props: FormBuilderProps) {
         <FormPropertiesPanel
             panel={state.panel}
             onPanelChange={actions.setPanel}
+            formId={state.activeFormId}
             selectedField={state.selectedField}
             selectedIndex={state.selectedIndex}
             fieldsLength={state.fields.length}
@@ -104,8 +105,8 @@ export function FormEditorShell(props: FormBuilderProps) {
         <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background">
             <FormEditorToolbar
                 mode={state.activeMode}
+                formId={state.activeFormId}
                 title={state.title}
-                slug={state.slug}
                 status={state.status}
                 currentVersion={state.currentVersion}
                 saveState={state.saveState}
@@ -113,7 +114,6 @@ export function FormEditorShell(props: FormBuilderProps) {
                 lastSyncedAt={state.lastSyncedAt}
                 saving={state.manualSaving}
                 publishing={state.publishing}
-                canPreview={state.status === "published"}
                 onSave={() => void actions.saveForm()}
                 onPublish={() => void actions.publishForm()}
                 onToggleOutline={() => setOutlineOpen(true)}

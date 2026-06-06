@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getFormBySlug } from "@/lib/cache";
 import { normalizeFormFields } from "@/lib/forms";
-import { FormFillClient } from "./form-fill-client";
+import { FormFillClient } from "@/components/forms/form-fill-client";
 
 type FormFillPageProps = {
     params: Promise<{ slug: string }>;

@@ -28,8 +28,8 @@ import { formatRelativeSaveTime } from "./utils";
 
 type FormEditorToolbarProps = {
     mode: "create" | "edit";
+    formId: string | null;
     title: string;
-    slug: string;
     status: "draft" | "published" | "archived";
     currentVersion: number | null;
     saveState: SaveState;
@@ -37,7 +37,6 @@ type FormEditorToolbarProps = {
     lastSyncedAt: number | null;
     saving: boolean;
     publishing: boolean;
-    canPreview: boolean;
     onSave: () => void;
     onPublish: () => void;
     onToggleOutline: () => void;
@@ -59,8 +58,8 @@ function SaveIcon({ state }: { state: SaveState }) {
 
 export function FormEditorToolbar({
     mode,
+    formId,
     title,
-    slug,
     status,
     currentVersion,
     saveState,
@@ -68,7 +67,6 @@ export function FormEditorToolbar({
     lastSyncedAt,
     saving,
     publishing,
-    canPreview,
     onSave,
     onPublish,
     onToggleOutline,
@@ -132,9 +130,9 @@ export function FormEditorToolbar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {canPreview && slug && (
+                    {formId && (
                         <Button variant="outline" size="sm" asChild className="hidden sm:inline-flex">
-                            <Link href={`/forms/${slug}`} target="_blank">
+                            <Link href={`/dashboard/forms/${formId}/view`} target="_blank">
                                 <Eye className="size-4" />
                                 预览
                             </Link>

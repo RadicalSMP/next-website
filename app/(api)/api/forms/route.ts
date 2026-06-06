@@ -4,8 +4,8 @@ import { pool } from "@/lib/db";
 import { getAdminForms, invalidateFormCache } from "@/lib/cache";
 import {
     DEFAULT_FORM_SETTINGS,
-    validateFormBasePayload,
-    validateFormVersionPayload,
+    normalizeDraftFormBasePayload,
+    normalizeDraftFormVersionPayload,
 } from "@/lib/forms";
 import { headers } from "next/headers";
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const baseResult = validateFormBasePayload({
+    const baseResult = normalizeDraftFormBasePayload({
         ...body,
         status: body.status || "draft",
     });
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: baseResult.error }, { status: 400 });
     }
 
-    const versionResult = validateFormVersionPayload({
+    const versionResult = normalizeDraftFormVersionPayload({
         title: body.title,
         description: body.description ?? null,
         fields: body.fields ?? [],

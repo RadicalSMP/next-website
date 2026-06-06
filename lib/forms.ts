@@ -62,6 +62,8 @@ export interface FormBasePayload {
     status: FormStatus;
 }
 
+export const UNTITLED_FORM_TITLE = "未命名表单";
+
 export const FORM_FIELD_TYPES: FormFieldType[] = [
     "text",
     "textarea",
@@ -96,6 +98,19 @@ export function slugifyFormKey(value: string) {
         .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "_")
         .replace(/_+/g, "_")
         .replace(/^_|_$/g, "");
+}
+
+export function normalizeFormSlug(value: string) {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+}
+
+export function createUntitledFormSlug() {
+    const suffix = Math.random().toString(36).slice(2, 8).padEnd(6, "0");
+    return `untitled-${suffix}`;
 }
 
 export function createEmptyFormField(index = 0): FormField {
@@ -308,6 +323,30 @@ export function validateFormVersionPayload(raw: unknown) {
     return { ok: true as const, value: normalized };
 }
 
+export function normalizeDraftFormVersionPayload(raw: unknown) {
+    if (!isRecord(raw)) {
+        return { ok: false as const, error: "版本数据格式无效" };
+    }
+
+    const title = coerceString(raw.title, "").trim();
+    const description = raw.description === null ? null : coerceString(raw.description, "").trim() || null;
+    const fields = normalizeFormFields(raw.fields);
+    const settings = isRecord(raw.settings) ? raw.settings : {};
+
+    const normalized: FormVersionPayload = {
+        title,
+        description,
+        fields: fields.length > 0 ? fields : [createEmptyFormField()],
+        settings: {
+            submitLabel: coerceString(settings.submitLabel, DEFAULT_FORM_SETTINGS.submitLabel).trim() || DEFAULT_FORM_SETTINGS.submitLabel,
+            successMessage: coerceString(settings.successMessage, DEFAULT_FORM_SETTINGS.successMessage).trim() || DEFAULT_FORM_SETTINGS.successMessage,
+            introText: coerceString(settings.introText, DEFAULT_FORM_SETTINGS.introText).trim(),
+        },
+    };
+
+    return { ok: true as const, value: normalized };
+}
+
 export function validateFormBasePayload(raw: unknown) {
     if (!isRecord(raw)) {
         return { ok: false as const, error: "表单基础信息格式无效" };
@@ -333,6 +372,43 @@ export function validateFormBasePayload(raw: unknown) {
     if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(slug)) {
         return { ok: false as const, error: "slug 只能包含小写字母、数字和连字符，且不能以连字符开头或结尾" };
     }
+    if (!["public", "authenticated", "members"].includes(visibility)) {
+        return { ok: false as const, error: "无效的可见性设置" };
+    }
+    if (!["draft", "published", "archived"].includes(status)) {
+        return { ok: false as const, error: "无效的状态设置" };
+    }
+
+    return {
+        ok: true as const,
+        value: {
+            title,
+            slug,
+            description,
+            visibility,
+            status,
+            allowedUserIds,
+        } satisfies FormBasePayload,
+    };
+}
+
+export function normalizeDraftFormBasePayload(raw: unknown) {
+    if (!isRecord(raw)) {
+        return { ok: false as const, error: "表单基础信息格式无效" };
+    }
+
+    const title = coerceString(raw.title, "").trim() || UNTITLED_FORM_TITLE;
+    const rawSlug = coerceString(raw.slug, "").trim();
+    const slug = normalizeFormSlug(rawSlug) || createUntitledFormSlug();
+    const description = raw.description === null ? null : coerceString(raw.description, "").trim() || null;
+    const visibility = coerceString(raw.visibility, "public") as FormVisibility;
+    const status = coerceString(raw.status, "draft") as FormStatus;
+    const allowedUserIds = Array.isArray(raw.allowedUserIds)
+        ? raw.allowedUserIds
+              .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+              .map((value) => value.trim())
+        : [];
+
     if (!["public", "authenticated", "members"].includes(visibility)) {
         return { ok: false as const, error: "无效的可见性设置" };
     }

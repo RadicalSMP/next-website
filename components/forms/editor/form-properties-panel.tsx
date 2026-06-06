@@ -41,6 +41,7 @@ import { formatDateTime } from "./utils";
 type FormPropertiesPanelProps = {
     panel: EditorPanel;
     onPanelChange: (panel: EditorPanel) => void;
+    formId: string | null;
     selectedField: FormField | null;
     selectedIndex: number;
     fieldsLength: number;
@@ -514,14 +515,14 @@ function FormSettingsPanel({
 }
 
 function PublishPanel({
-    slug,
+    formId,
     publishIssues,
     versions,
     currentVersion,
     publishedAt,
     onSelectIssue,
 }: Pick<FormPropertiesPanelProps,
-    | "slug"
+    | "formId"
     | "publishIssues"
     | "versions"
     | "currentVersion"
@@ -571,11 +572,11 @@ function PublishPanel({
                 ))}
             </div>
 
-            {slug && (
+            {formId && (
                 <Button variant="outline" className="w-full" asChild>
-                    <Link href={`/forms/${slug}`} target="_blank">
+                    <Link href={`/dashboard/forms/${formId}/view`} target="_blank">
                         <ExternalLink className="size-4" />
-                        打开公开预览
+                        预览草稿
                     </Link>
                 </Button>
             )}
