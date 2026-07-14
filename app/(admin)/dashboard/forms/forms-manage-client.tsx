@@ -205,12 +205,12 @@ export function FormsManageClient({ initialForms }: FormsManageClientProps) {
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="size-8" asChild>
-                                                            <Link href={`/dashboard/forms/${form.id}/submissions`} aria-label={`查看表单 ${form.title || "未命名表单"} 的提交`}>
+                                                            <Link href={`/dashboard/forms/${form.id}/results`} aria-label={`查看表单 ${form.title || "未命名表单"} 的结果`}>
                                                                 <ClipboardList className="size-4" />
                                                             </Link>
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>查看提交</TooltipContent>
+                                                    <TooltipContent>查看结果</TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                             <TooltipProvider>

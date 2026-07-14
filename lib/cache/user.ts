@@ -75,7 +75,7 @@ export function invalidateUserRelatedContentCache(
     revalidateTag(CACHE_TAGS.ADMIN_BLOG_POSTS, { expire: 0 });
     revalidateTag(CACHE_TAGS.ADMIN_FORMS, { expire: 0 });
     revalidateTag(CACHE_TAGS.FORM_SUBMISSIONS, { expire: 0 });
-    revalidateTag(CACHE_TAGS.REVIEW_SUBMISSIONS, { expire: 0 });
+    revalidateTag(CACHE_TAGS.FORM_RESULTS, { expire: 0 });
 
     for (const slug of new Set(targets.publishedBlogSlugs.filter(Boolean))) {
         revalidateTag(getBlogPostTag(slug), { expire: 0 });

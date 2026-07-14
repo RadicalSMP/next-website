@@ -46,11 +46,87 @@ export interface FormSettings {
     introText: string;
 }
 
+export type ResultGradingMode = "none" | "objective" | "manual" | "mixed";
+export type ResultGradeType = "auto" | "manual";
+export type ResultMatchStrategy = "exact" | "partial";
+export type ResultRecipientSource = "mapped_field" | "account_email";
+export type ResultNotificationTemplate =
+    | "join_application_result"
+    | "score_result"
+    | "generic_result"
+    | null;
+export type SubmissionGradingStatus =
+    | "not_required"
+    | "auto_graded"
+    | "manual_required"
+    | "graded";
+export type SubmissionProcessingStatus =
+    | "not_required"
+    | "pending"
+    | "approved"
+    | "rejected"
+    | "needs_changes";
+
+export interface ResultCollectionConfig {
+    enabled: boolean;
+    label: string;
+    allowAnonymous: boolean;
+}
+
+export interface ResultGradingRule {
+    fieldKey: string;
+    enabled: boolean;
+    gradingType: ResultGradeType;
+    correctAnswer?: string | number | boolean | string[] | null;
+    maxScore: number;
+    matchStrategy: ResultMatchStrategy;
+    requiredManual: boolean;
+    prompt: string;
+}
+
+export interface ResultGradingConfig {
+    enabled: boolean;
+    mode: ResultGradingMode;
+    rules: ResultGradingRule[];
+}
+
+export interface ResultProcessingConfig {
+    enabled: boolean;
+    statuses: SubmissionProcessingStatus[];
+    defaultStatus: SubmissionProcessingStatus;
+}
+
+export interface ResultNotificationConfig {
+    enabled: boolean;
+    template: ResultNotificationTemplate;
+    recipient: {
+        source: ResultRecipientSource;
+        fieldKey: string | null;
+    };
+    autoSend: boolean;
+}
+
+export interface ResultFieldMappings {
+    email: string | null;
+    playerName: string | null;
+    qq: string | null;
+    mcid: string | null;
+}
+
+export interface FormResultConfig {
+    collection: ResultCollectionConfig;
+    grading: ResultGradingConfig;
+    processing: ResultProcessingConfig;
+    notifications: ResultNotificationConfig;
+    fieldMappings: ResultFieldMappings;
+}
+
 export interface FormVersionPayload {
     title: string;
     description: string | null;
     fields: FormField[];
     settings: FormSettings;
+    resultConfig: FormResultConfig;
 }
 
 export interface FormBasePayload {
@@ -60,6 +136,30 @@ export interface FormBasePayload {
     visibility: FormVisibility;
     allowedUserIds: string[];
     status: FormStatus;
+}
+
+export interface SubmissionGradeDraft {
+    fieldKey: string;
+    fieldLabel: string;
+    fieldType: FormFieldType;
+    answer: string | number | boolean | string[] | null;
+    expectedAnswer: string | number | boolean | string[] | null;
+    score: number | null;
+    maxScore: number;
+    gradingType: ResultGradeType;
+    matched: boolean | null;
+    comment: string | null;
+    ruleSnapshot: ResultGradingRule;
+    gradedBy: string | null;
+    gradedAt: string | null;
+}
+
+export interface SubmissionGradeResult {
+    gradingStatus: SubmissionGradingStatus;
+    processingStatus: SubmissionProcessingStatus;
+    totalScore: number | null;
+    maxScore: number | null;
+    grades: SubmissionGradeDraft[];
 }
 
 export const UNTITLED_FORM_TITLE = "未命名表单";
@@ -83,6 +183,61 @@ export const DEFAULT_FORM_SETTINGS: FormSettings = {
     successMessage: "提交成功，感谢你的填写。",
     introText: "",
 };
+
+export const DEFAULT_RESULT_CONFIG: FormResultConfig = {
+    collection: {
+        enabled: true,
+        label: "",
+        allowAnonymous: true,
+    },
+    grading: {
+        enabled: false,
+        mode: "none",
+        rules: [],
+    },
+    processing: {
+        enabled: false,
+        statuses: ["pending", "approved", "rejected", "needs_changes"],
+        defaultStatus: "pending",
+    },
+    notifications: {
+        enabled: false,
+        template: null,
+        recipient: {
+            source: "mapped_field",
+            fieldKey: null,
+        },
+        autoSend: false,
+    },
+    fieldMappings: {
+        email: null,
+        playerName: null,
+        qq: null,
+        mcid: null,
+    },
+};
+
+const OBJECTIVE_GRADING_FIELD_TYPES: FormFieldType[] = ["radio", "checkbox", "select", "toggle"];
+const MANUAL_GRADING_FIELD_TYPES: FormFieldType[] = [
+    "text",
+    "textarea",
+    "number",
+    "date",
+    "email",
+    "qq",
+    "mcid",
+];
+const PROCESSING_STATUSES: SubmissionProcessingStatus[] = [
+    "pending",
+    "approved",
+    "rejected",
+    "needs_changes",
+];
+const NOTIFICATION_TEMPLATES: Exclude<ResultNotificationTemplate, null>[] = [
+    "join_application_result",
+    "score_result",
+    "generic_result",
+];
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -142,6 +297,7 @@ export function createEmptyFormVersion(title = "", description: string | null = 
         description,
         fields: [createEmptyFormField()],
         settings: { ...DEFAULT_FORM_SETTINGS },
+        resultConfig: cloneResultConfig(DEFAULT_RESULT_CONFIG),
     };
 }
 
@@ -162,6 +318,14 @@ function coerceNumber(value: unknown) {
         return Number.isFinite(parsed) ? parsed : undefined;
     }
     return undefined;
+}
+
+function coerceNonNegativeNumber(value: unknown, fallback = 0) {
+    const parsed = coerceNumber(value);
+    if (parsed === undefined || parsed < 0) {
+        return fallback;
+    }
+    return parsed;
 }
 
 function normalizeDefaultValue(value: unknown): string | number | boolean | string[] | null {
@@ -266,6 +430,396 @@ export function normalizeFormFields(rawFields: unknown): FormField[] {
     return rawFields.map((field, index) => normalizeFormField(field, index));
 }
 
+export function cloneResultConfig(config: FormResultConfig): FormResultConfig {
+    return {
+        collection: { ...config.collection },
+        grading: {
+            ...config.grading,
+            rules: config.grading.rules.map((rule) => ({
+                ...rule,
+                correctAnswer: Array.isArray(rule.correctAnswer)
+                    ? [...rule.correctAnswer]
+                    : rule.correctAnswer,
+            })),
+        },
+        processing: {
+            ...config.processing,
+            statuses: [...config.processing.statuses],
+        },
+        notifications: {
+            ...config.notifications,
+            recipient: { ...config.notifications.recipient },
+        },
+        fieldMappings: { ...config.fieldMappings },
+    };
+}
+
+function findField(fields: FormField[], key: string) {
+    return fields.find((field) => field.key === key);
+}
+
+export function isObjectiveGradingField(type: FormFieldType) {
+    return OBJECTIVE_GRADING_FIELD_TYPES.includes(type);
+}
+
+export function isManualGradingField(type: FormFieldType) {
+    return MANUAL_GRADING_FIELD_TYPES.includes(type);
+}
+
+function normalizeFieldKeyReference(value: unknown, fields: FormField[]) {
+    const key = coerceString(value, "").trim();
+    return key && findField(fields, key) ? key : null;
+}
+
+function normalizeCorrectAnswer(field: FormField, value: unknown) {
+    if (field.type === "checkbox") {
+        if (!Array.isArray(value)) {
+            return [];
+        }
+        const allowed = new Set((field.options ?? []).map((option) => option.value));
+        return value
+            .filter((item): item is string => typeof item === "string")
+            .filter((item) => allowed.size === 0 || allowed.has(item));
+    }
+
+    if (field.type === "toggle") {
+        return typeof value === "boolean" ? value : Boolean(value);
+    }
+
+    if (field.type === "radio" || field.type === "select") {
+        const answer = coerceString(value, "").trim();
+        const allowed = (field.options ?? []).map((option) => option.value);
+        return allowed.includes(answer) ? answer : "";
+    }
+
+    return null;
+}
+
+function normalizeGradingRule(raw: unknown, fields: FormField[]): ResultGradingRule | null {
+    if (!isRecord(raw)) {
+        return null;
+    }
+
+    const fieldKey = coerceString(raw.fieldKey, "").trim();
+    const field = findField(fields, fieldKey);
+    if (!field) {
+        return null;
+    }
+
+    const isObjective = isObjectiveGradingField(field.type);
+    const requestedType = coerceString(raw.gradingType, isObjective ? "auto" : "manual");
+    const gradingType: ResultGradeType = isObjective && requestedType !== "manual" ? "auto" : "manual";
+    const matchStrategy = coerceString(raw.matchStrategy, "exact") === "partial" ? "partial" : "exact";
+    const maxScore = coerceNonNegativeNumber(raw.maxScore, 0);
+
+    return {
+        fieldKey,
+        enabled: coerceBoolean(raw.enabled, true),
+        gradingType,
+        correctAnswer: gradingType === "auto" ? normalizeCorrectAnswer(field, raw.correctAnswer) : null,
+        maxScore,
+        matchStrategy,
+        requiredManual: gradingType === "manual" ? coerceBoolean(raw.requiredManual, true) : false,
+        prompt: coerceString(raw.prompt, "").trim(),
+    };
+}
+
+function inferGradingMode(rules: ResultGradingRule[]): ResultGradingMode {
+    const enabledRules = rules.filter((rule) => rule.enabled);
+    const hasAuto = enabledRules.some((rule) => rule.gradingType === "auto");
+    const hasManual = enabledRules.some((rule) => rule.gradingType === "manual");
+
+    if (hasAuto && hasManual) return "mixed";
+    if (hasAuto) return "objective";
+    if (hasManual) return "manual";
+    return "none";
+}
+
+export function normalizeResultConfig(raw: unknown, fields: FormField[]): FormResultConfig {
+    const source = isRecord(raw) ? raw : {};
+    const collection = isRecord(source.collection) ? source.collection : {};
+    const grading = isRecord(source.grading) ? source.grading : {};
+    const processing = isRecord(source.processing) ? source.processing : {};
+    const notifications = isRecord(source.notifications) ? source.notifications : {};
+    const recipient = isRecord(notifications.recipient) ? notifications.recipient : {};
+    const mappings = isRecord(source.fieldMappings) ? source.fieldMappings : {};
+
+    const rules = Array.isArray(grading.rules)
+        ? grading.rules
+            .map((rule) => normalizeGradingRule(rule, fields))
+            .filter((rule): rule is ResultGradingRule => rule !== null)
+        : [];
+    const enabledRules = rules.filter((rule) => rule.enabled);
+    const gradingEnabled = coerceBoolean(grading.enabled, false) && enabledRules.length > 0;
+    const gradingMode = gradingEnabled ? inferGradingMode(enabledRules) : "none";
+
+    const statuses = Array.isArray(processing.statuses)
+        ? processing.statuses
+            .filter((status): status is SubmissionProcessingStatus =>
+                typeof status === "string" &&
+                PROCESSING_STATUSES.includes(status as SubmissionProcessingStatus),
+            )
+        : [];
+    const normalizedStatuses = statuses.length > 0 ? Array.from(new Set(statuses)) : DEFAULT_RESULT_CONFIG.processing.statuses;
+    const defaultStatus = coerceString(processing.defaultStatus, DEFAULT_RESULT_CONFIG.processing.defaultStatus) as SubmissionProcessingStatus;
+    const safeDefaultStatus = normalizedStatuses.includes(defaultStatus) ? defaultStatus : normalizedStatuses[0] ?? "pending";
+
+    const templateValue = coerceString(notifications.template, "");
+    const template = NOTIFICATION_TEMPLATES.includes(templateValue as Exclude<ResultNotificationTemplate, null>)
+        ? templateValue as Exclude<ResultNotificationTemplate, null>
+        : null;
+    const recipientSource = coerceString(recipient.source, "mapped_field") === "account_email"
+        ? "account_email"
+        : "mapped_field";
+    const recipientFieldKey = normalizeFieldKeyReference(recipient.fieldKey, fields);
+
+    return {
+        collection: {
+            enabled: coerceBoolean(collection.enabled, true),
+            label: coerceString(collection.label, "").trim(),
+            allowAnonymous: coerceBoolean(collection.allowAnonymous, true),
+        },
+        grading: {
+            enabled: gradingEnabled,
+            mode: gradingMode,
+            rules: gradingEnabled ? enabledRules : [],
+        },
+        processing: {
+            enabled: coerceBoolean(processing.enabled, false),
+            statuses: normalizedStatuses,
+            defaultStatus: safeDefaultStatus,
+        },
+        notifications: {
+            enabled: coerceBoolean(notifications.enabled, false) && template !== null,
+            template,
+            recipient: {
+                source: recipientSource,
+                fieldKey: recipientSource === "mapped_field" ? recipientFieldKey : null,
+            },
+            autoSend: coerceBoolean(notifications.autoSend, false),
+        },
+        fieldMappings: {
+            email: normalizeFieldKeyReference(mappings.email, fields),
+            playerName: normalizeFieldKeyReference(mappings.playerName, fields),
+            qq: normalizeFieldKeyReference(mappings.qq, fields),
+            mcid: normalizeFieldKeyReference(mappings.mcid, fields),
+        },
+    };
+}
+
+export function validateResultConfigForPublish(config: FormResultConfig, fields: FormField[]) {
+    const fieldMap = new Map(fields.map((field) => [field.key, field]));
+
+    if (config.grading.enabled) {
+        for (const rule of config.grading.rules) {
+            const field = fieldMap.get(rule.fieldKey);
+            if (!field) {
+                return { ok: false as const, error: `批改规则引用了不存在的字段「${rule.fieldKey}」` };
+            }
+            if (rule.maxScore < 0) {
+                return { ok: false as const, error: `字段「${field.label}」的分值不能为负数` };
+            }
+            if (rule.gradingType === "auto") {
+                if (!isObjectiveGradingField(field.type)) {
+                    return { ok: false as const, error: `字段「${field.label}」不支持客观题自动批改` };
+                }
+                if (field.type === "checkbox" && (!Array.isArray(rule.correctAnswer) || rule.correctAnswer.length === 0)) {
+                    return { ok: false as const, error: `字段「${field.label}」需要设置正确答案` };
+                }
+                if (field.type !== "checkbox" && (rule.correctAnswer === "" || rule.correctAnswer === null || rule.correctAnswer === undefined)) {
+                    return { ok: false as const, error: `字段「${field.label}」需要设置正确答案` };
+                }
+            }
+            if (rule.gradingType === "manual" && !isManualGradingField(field.type)) {
+                return { ok: false as const, error: `字段「${field.label}」不适合作为主观题人工批改` };
+            }
+        }
+    }
+
+    if (config.notifications.enabled && config.notifications.recipient.source === "mapped_field" && !config.notifications.recipient.fieldKey) {
+        return { ok: false as const, error: "启用通知时需要选择收件人邮箱字段，或改用账号邮箱" };
+    }
+
+    return { ok: true as const };
+}
+
+function normalizeAnswerForCompare(value: unknown) {
+    if (Array.isArray(value)) {
+        return value.map(String).sort();
+    }
+    if (typeof value === "boolean") {
+        return value;
+    }
+    if (value === null || value === undefined) {
+        return "";
+    }
+    return String(value);
+}
+
+function scoreObjectiveAnswer(rule: ResultGradingRule, answer: unknown) {
+    const expected = normalizeAnswerForCompare(rule.correctAnswer);
+    const actual = normalizeAnswerForCompare(answer);
+
+    if (Array.isArray(expected)) {
+        const actualValues = Array.isArray(actual) ? actual : [];
+        if (rule.matchStrategy === "partial") {
+            if (expected.length === 0) {
+                return { matched: actualValues.length === 0, score: actualValues.length === 0 ? rule.maxScore : 0 };
+            }
+            const expectedSet = new Set(expected);
+            const actualSet = new Set(actualValues);
+            const correctCount = [...actualSet].filter((item) => expectedSet.has(item)).length;
+            const wrongCount = [...actualSet].filter((item) => !expectedSet.has(item)).length;
+            const ratio = Math.max(0, (correctCount - wrongCount) / expectedSet.size);
+            const score = Number((rule.maxScore * ratio).toFixed(2));
+            return { matched: score === rule.maxScore, score };
+        }
+        const matched = expected.length === actualValues.length && expected.every((item, index) => item === actualValues[index]);
+        return { matched, score: matched ? rule.maxScore : 0 };
+    }
+
+    const matched = expected === actual;
+    return { matched, score: matched ? rule.maxScore : 0 };
+}
+
+export function buildSubmissionGradeResult(
+    fields: FormField[],
+    values: Record<string, string | number | boolean | string[] | null>,
+    resultConfig: FormResultConfig,
+): SubmissionGradeResult {
+    const processingStatus = resultConfig.processing.enabled
+        ? resultConfig.processing.defaultStatus
+        : "not_required";
+
+    if (!resultConfig.grading.enabled || resultConfig.grading.rules.length === 0) {
+        return {
+            gradingStatus: "not_required",
+            processingStatus,
+            totalScore: null,
+            maxScore: null,
+            grades: [],
+        };
+    }
+
+    const grades: SubmissionGradeDraft[] = [];
+    let totalScore = 0;
+    let maxScore = 0;
+    let hasAuto = false;
+    let hasManual = false;
+    let hasRequiredManual = false;
+
+    for (const rule of resultConfig.grading.rules.filter((item) => item.enabled)) {
+        const field = findField(fields, rule.fieldKey);
+        if (!field) {
+            continue;
+        }
+        const answer = values[field.key] ?? null;
+        maxScore += rule.maxScore;
+
+        if (rule.gradingType === "auto") {
+            hasAuto = true;
+            const scored = scoreObjectiveAnswer(rule, answer);
+            totalScore += scored.score;
+            grades.push({
+                fieldKey: field.key,
+                fieldLabel: field.label,
+                fieldType: field.type,
+                answer,
+                expectedAnswer: rule.correctAnswer ?? null,
+                score: scored.score,
+                maxScore: rule.maxScore,
+                gradingType: "auto",
+                matched: scored.matched,
+                comment: null,
+                ruleSnapshot: rule,
+                gradedBy: null,
+                gradedAt: new Date().toISOString(),
+            });
+            continue;
+        }
+
+        hasManual = true;
+        hasRequiredManual = hasRequiredManual || rule.requiredManual;
+        grades.push({
+            fieldKey: field.key,
+            fieldLabel: field.label,
+            fieldType: field.type,
+            answer,
+            expectedAnswer: null,
+            score: null,
+            maxScore: rule.maxScore,
+            gradingType: "manual",
+            matched: null,
+            comment: null,
+            ruleSnapshot: rule,
+            gradedBy: null,
+            gradedAt: null,
+        });
+    }
+
+    const gradingStatus: SubmissionGradingStatus = hasManual && hasRequiredManual
+        ? "manual_required"
+        : hasAuto
+            ? "auto_graded"
+            : "not_required";
+
+    return {
+        gradingStatus,
+        processingStatus,
+        totalScore: grades.length > 0 ? totalScore : null,
+        maxScore: grades.length > 0 ? maxScore : null,
+        grades,
+    };
+}
+
+export function createJoinApplicationResultPreset(fields: FormField[]): FormResultConfig {
+    const findKeyByType = (type: FormFieldType) => fields.find((field) => field.type === type)?.key ?? null;
+    const findKeyByText = (patterns: string[]) => {
+        const matched = fields.find((field) => {
+            const source = `${field.key} ${field.label}`.toLowerCase();
+            return patterns.some((pattern) => source.includes(pattern.toLowerCase()));
+        });
+        return matched?.key ?? null;
+    };
+
+    const email = findKeyByType("email") ?? findKeyByText(["email", "邮箱"]);
+    const playerName = findKeyByType("mcid") ?? findKeyByText(["mcid", "minecraft", "玩家"]);
+    const qq = findKeyByType("qq") ?? findKeyByText(["qq"]);
+
+    return normalizeResultConfig({
+        collection: {
+            enabled: true,
+            label: "入服申请",
+            allowAnonymous: true,
+        },
+        grading: {
+            enabled: false,
+            mode: "none",
+            rules: [],
+        },
+        processing: {
+            enabled: true,
+            statuses: ["pending", "approved", "rejected", "needs_changes"],
+            defaultStatus: "pending",
+        },
+        notifications: {
+            enabled: Boolean(email),
+            template: "join_application_result",
+            recipient: {
+                source: email ? "mapped_field" : "account_email",
+                fieldKey: email,
+            },
+            autoSend: false,
+        },
+        fieldMappings: {
+            email,
+            playerName,
+            qq,
+            mcid: playerName,
+        },
+    }, fields);
+}
+
 export function hasDuplicateFieldKeys(fields: FormField[]) {
     const seen = new Set<string>();
     for (const field of fields) {
@@ -309,6 +863,12 @@ export function validateFormVersionPayload(raw: unknown) {
     }
 
     const settings = isRecord(raw.settings) ? raw.settings : {};
+    const resultConfig = normalizeResultConfig(raw.resultConfig ?? raw.result_config, fields);
+    const resultConfigValidation = validateResultConfigForPublish(resultConfig, fields);
+    if (!resultConfigValidation.ok) {
+        return resultConfigValidation;
+    }
+
     const normalized: FormVersionPayload = {
         title,
         description,
@@ -318,6 +878,7 @@ export function validateFormVersionPayload(raw: unknown) {
             successMessage: coerceString(settings.successMessage, DEFAULT_FORM_SETTINGS.successMessage).trim() || DEFAULT_FORM_SETTINGS.successMessage,
             introText: coerceString(settings.introText, DEFAULT_FORM_SETTINGS.introText).trim(),
         },
+        resultConfig,
     };
 
     return { ok: true as const, value: normalized };
@@ -332,16 +893,18 @@ export function normalizeDraftFormVersionPayload(raw: unknown) {
     const description = raw.description === null ? null : coerceString(raw.description, "").trim() || null;
     const fields = normalizeFormFields(raw.fields);
     const settings = isRecord(raw.settings) ? raw.settings : {};
+    const normalizedFields = fields.length > 0 ? fields : [createEmptyFormField()];
 
     const normalized: FormVersionPayload = {
         title,
         description,
-        fields: fields.length > 0 ? fields : [createEmptyFormField()],
+        fields: normalizedFields,
         settings: {
             submitLabel: coerceString(settings.submitLabel, DEFAULT_FORM_SETTINGS.submitLabel).trim() || DEFAULT_FORM_SETTINGS.submitLabel,
             successMessage: coerceString(settings.successMessage, DEFAULT_FORM_SETTINGS.successMessage).trim() || DEFAULT_FORM_SETTINGS.successMessage,
             introText: coerceString(settings.introText, DEFAULT_FORM_SETTINGS.introText).trim(),
         },
+        resultConfig: normalizeResultConfig(raw.resultConfig ?? raw.result_config, normalizedFields),
     };
 
     return { ok: true as const, value: normalized };

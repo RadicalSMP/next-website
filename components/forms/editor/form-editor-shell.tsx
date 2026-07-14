@@ -36,6 +36,8 @@ export function FormEditorShell(props: FormBuilderProps) {
         if (issue.fieldIndex !== undefined) {
             actions.setSelectedIndex(issue.fieldIndex);
             actions.setPanel("field");
+        } else if (issue.id === "result-config") {
+            actions.setPanel("result");
         }
         setPropertiesOpen(false);
     };
@@ -58,10 +60,12 @@ export function FormEditorShell(props: FormBuilderProps) {
             formId={state.activeFormId}
             selectedField={state.selectedField}
             selectedIndex={state.selectedIndex}
+            fields={state.fields}
             fieldsLength={state.fields.length}
             slug={state.slug}
             visibility={state.visibility}
             settings={state.settings}
+            resultConfig={state.resultConfig}
             allowedUserIds={state.allowedUserIds}
             allowedUsers={state.allowedUsers}
             memberSearchQuery={state.memberSearchQuery}
@@ -74,6 +78,8 @@ export function FormEditorShell(props: FormBuilderProps) {
             onSlugChange={actions.setSlug}
             onVisibilityChange={actions.setVisibility}
             onSettingsChange={actions.setSettings}
+            onResultConfigChange={actions.setResultConfig}
+            onApplyJoinApplicationPreset={actions.applyJoinApplicationPreset}
             onFieldUpdate={actions.updateField}
             onMemberQueryChange={actions.setMemberSearchQuery}
             onAddMember={actions.addMember}

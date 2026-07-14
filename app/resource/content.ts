@@ -1,6 +1,6 @@
 import { FaGithub, FaQq } from "react-icons/fa";
 import { FaBilibili } from "react-icons/fa6";
-import { RiBloggerLine, RiCoupon3Line, RiDashboardLine, RiFileListLine, RiHomeLine, RiInformationLine, RiSettings3Line, RiToolsLine, RiUserLine } from "react-icons/ri";
+import { RiBarChartLine, RiBloggerLine, RiCoupon3Line, RiDashboardLine, RiFileListLine, RiHomeLine, RiInformationLine, RiSettings3Line, RiToolsLine, RiUserLine } from "react-icons/ri";
 import { FaBalanceScale, FaHeart, FaPeopleCarry } from "react-icons/fa";
 import { LuSparkle } from "react-icons/lu";
 import { IconType } from "react-icons";
@@ -150,6 +150,12 @@ export const dashboard_items: Record<string, DashboardSection> = {
                 title: "表单管理",
                 desc: "创建和管理自定义表单",
                 href: "/dashboard/forms",
+            },
+            {
+                icon: RiBarChartLine,
+                title: "结果中心",
+                desc: "查看表单结果、批改进度和处理状态",
+                href: "/dashboard/forms/results",
             },
         ],
     },

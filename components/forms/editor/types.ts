@@ -1,4 +1,10 @@
-import { FormField, FormSettings, FormStatus, FormVisibility } from "@/lib/forms";
+import {
+    FormField,
+    FormResultConfig,
+    FormSettings,
+    FormStatus,
+    FormVisibility,
+} from "@/lib/forms";
 
 export type FormBuilderProps = {
     mode: "create" | "edit";
@@ -26,7 +32,7 @@ export type SaveState =
     | "validation_blocked"
     | "error";
 
-export type EditorPanel = "field" | "form" | "publish";
+export type EditorPanel = "field" | "form" | "result" | "publish";
 
 export type PublishIssue = {
     id: string;
@@ -45,6 +51,7 @@ export type FormEditorPayload = {
     allowedUserIds: string[];
     fields: FormField[];
     settings: FormSettings;
+    resultConfig: FormResultConfig;
 };
 
 export type LocalDraft = {

@@ -16,6 +16,8 @@ export {
     getAdminFormById,
     getFormVersions,
     getFormSubmissions,
+    getResultList,
+    getResultDetail,
     invalidateFormCache,
     invalidateSubmissionCache,
 } from "./form";

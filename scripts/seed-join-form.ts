@@ -6,6 +6,39 @@
 
 import { Pool } from "pg";
 
+const resultConfig = {
+    collection: {
+        enabled: true,
+        label: "入服申请",
+        allowAnonymous: true,
+    },
+    grading: {
+        enabled: false,
+        mode: "none",
+        rules: [],
+    },
+    processing: {
+        enabled: true,
+        statuses: ["pending", "approved", "rejected", "needs_changes"],
+        defaultStatus: "pending",
+    },
+    notifications: {
+        enabled: false,
+        template: "join_application_result",
+        recipient: {
+            source: "account_email",
+            fieldKey: null,
+        },
+        autoSend: false,
+    },
+    fieldMappings: {
+        email: null,
+        playerName: "mcid",
+        qq: "qq",
+        mcid: "mcid",
+    },
+};
+
 async function seed() {
     if (!process.env.DATABASE_URL) {
         console.error("缺少 DATABASE_URL 环境变量");
@@ -42,6 +75,7 @@ async function seed() {
                 successMessage: "提交成功，我们会尽快处理你的申请。",
                 introText: "请认真填写以下信息。",
             },
+            resultConfig,
         };
 
         const formResult = await pool.query(
@@ -61,8 +95,8 @@ async function seed() {
         const formId = formResult.rows[0].id as string;
         const versionResult = await pool.query(
             `INSERT INTO form_versions
-                (form_id, version, title, description, fields, settings, published_by)
-             VALUES ($1, 1, $2, $3, $4, $5, $6)
+                (form_id, version, title, description, fields, settings, result_config, published_by)
+             VALUES ($1, 1, $2, $3, $4, $5, $6, $7)
              RETURNING id`,
             [
                 formId,
@@ -70,6 +104,7 @@ async function seed() {
                 draftPayload.description,
                 JSON.stringify(draftPayload.fields),
                 JSON.stringify(draftPayload.settings),
+                JSON.stringify(draftPayload.resultConfig),
                 adminUserId,
             ],
         );

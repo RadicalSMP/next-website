@@ -23,28 +23,33 @@ export async function POST(
     }
 
     const { id } = await params;
-    const formResult = await pool.query(
-        `SELECT id, title, description, slug, draft_payload
-         FROM forms
-         WHERE id = $1`,
-        [id],
-    );
-
-    if (formResult.rows.length === 0) {
-        return NextResponse.json({ error: "表单不存在" }, { status: 404 });
-    }
-
-    const form = formResult.rows[0];
-    const payloadResult = validateFormVersionPayload(form.draft_payload);
-    if (!payloadResult.ok) {
-        return NextResponse.json({ error: payloadResult.error }, { status: 400 });
-    }
-
-    await pool.query("BEGIN");
+    const client = await pool.connect();
     try {
-        const versionResult = await pool.query(
+        await client.query("BEGIN");
+
+        const formResult = await client.query(
+            `SELECT id, title, description, slug, draft_payload
+             FROM forms
+             WHERE id = $1
+             FOR UPDATE`,
+            [id],
+        );
+
+        if (formResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return NextResponse.json({ error: "表单不存在" }, { status: 404 });
+        }
+
+        const form = formResult.rows[0];
+        const payloadResult = validateFormVersionPayload(form.draft_payload);
+        if (!payloadResult.ok) {
+            await client.query("ROLLBACK");
+            return NextResponse.json({ error: payloadResult.error }, { status: 400 });
+        }
+
+        const versionResult = await client.query(
             `INSERT INTO form_versions
-                (form_id, version, title, description, fields, settings, published_by)
+                (form_id, version, title, description, fields, settings, result_config, published_by)
              VALUES (
                 $1,
                 COALESCE((SELECT MAX(version) + 1 FROM form_versions WHERE form_id = $1), 1),
@@ -52,7 +57,8 @@ export async function POST(
                 $3,
                 $4,
                 $5,
-                $6
+                $6,
+                $7
              )
              RETURNING id, version, published_at`,
             [
@@ -61,11 +67,12 @@ export async function POST(
                 payloadResult.value.description,
                 JSON.stringify(payloadResult.value.fields),
                 JSON.stringify(payloadResult.value.settings),
+                JSON.stringify(payloadResult.value.resultConfig),
                 session.user.id,
             ],
         );
 
-        await pool.query(
+        await client.query(
             `UPDATE forms SET
                 title = $1,
                 description = $2,
@@ -81,13 +88,15 @@ export async function POST(
             ],
         );
 
-        await pool.query("COMMIT");
+        await client.query("COMMIT");
 
         invalidateFormCache([form.slug]);
 
         return NextResponse.json({ version: versionResult.rows[0] }, { status: 201 });
     } catch (error) {
-        await pool.query("ROLLBACK");
+        await client.query("ROLLBACK");
         throw error;
+    } finally {
+        client.release();
     }
 }

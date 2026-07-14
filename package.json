@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "bun run scripts/seed.ts",
-    "seed:join-form": "bun run scripts/seed-join-form.ts",
-    "migrate:forms": "bun run scripts/migrate-forms.ts",
+    "seed:join-form": "node --env-file=.env --experimental-strip-types scripts/seed-join-form.ts",
+    "migrate:forms": "node --env-file=.env --experimental-strip-types scripts/migrate-forms.ts",
     "migrate:blog": "bun run scripts/migrate-blog.ts"
   },
   "dependencies": {

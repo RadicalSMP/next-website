@@ -1,0 +1,25 @@
+{
+  "runId": "20260714T230035-form-results-regression",
+  "stage": "phase_cleanup",
+  "status": "completed",
+  "timestamp": "2026-07-14T23:00:35+08:00",
+  "developmentServer": "stopped",
+  "browserTestPage": "closed",
+  "databaseIdleTransactions": 0,
+  "temporaryFiles": {
+    "created": [],
+    "removed": [],
+    "status": "clean"
+  },
+  "testDataRetained": {
+    "formSlug": "grading-regression-20260714",
+    "submissionCount": 1,
+    "purpose": "供用户复查自动批改和人工批改结果"
+  },
+  "preservedFiles": [
+    ".serena/project.yml",
+    ".opencode/package-lock.json"
+  ],
+  "commitCreated": false,
+  "remainingBlockers": []
+}

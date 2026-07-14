@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import type { ResultNotificationTemplate } from "@/lib/forms";
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -10,6 +11,15 @@ function getResend() {
 
 {/* 现在绑上了 hami.su 的域名, 在将来某个日子买了 radicalsmp.org 的域名后, 将它绑上resend, 然后改掉这个发件邮箱w */}
 const FROM = "BotamiDragen <botamidragen@hami.su>";
+
+function escapeHtml(value: string) {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 export async function sendPasswordResetEmail(params: {
     to: string;
@@ -65,54 +75,65 @@ export async function sendVerificationEmail(params: {
     });
 }
 
-/**
- * 发送入服申请审核结果邮件
- */
-export async function sendReviewResultEmail(params: {
+export async function sendFormResultNotificationEmail(params: {
     to: string;
-    playerName?: string;
-    approved: boolean;
-    note?: string;
+    template: Exclude<ResultNotificationTemplate, null>;
+    formTitle: string;
+    recipientName?: string | null;
+    processingStatus?: string | null;
+    totalScore?: string | number | null;
+    maxScore?: string | number | null;
+    note?: string | null;
 }) {
-    const { to, playerName, approved, note } = params;
-    const greeting = playerName ? `${playerName}，你好！` : "你好！";
+    const {
+        to,
+        template,
+        formTitle,
+        recipientName,
+        processingStatus,
+        totalScore,
+        maxScore,
+        note,
+    } = params;
 
-    if (approved) {
-        await getResend().emails.send({
-            from: FROM,
-            to,
-            subject: "入服申请已通过 - RadicalSMP",
-            html: `
-                <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-                    <h2 style="color: #16a34a;">🎉 恭喜，入服申请已通过！</h2>
-                    <p>${greeting}</p>
-                    <p>你的入服申请已经通过审核，欢迎加入 RadicalSMP！</p>
-                    ${note ? `<div style="background: #f4f4f5; padding: 12px 16px; border-radius: 6px; margin: 16px 0;"><p style="margin: 0; color: #666; font-size: 14px;">管理员备注：</p><p style="margin: 4px 0 0 0;">${note}</p></div>` : ""}
-                    <p>接下来请：</p>
-                    <ol style="color: #444;">
-                        <li>加入我们的 QQ 群，与其他成员交流</li>
-                        <li>在群内联系管理员获取服务器地址</li>
-                    </ol>
-                    <p style="color: #666; font-size: 14px;">期待在游戏中见到你！</p>
-                </div>
-            `,
-        });
-    } else {
-        await getResend().emails.send({
-            from: FROM,
-            to,
-            subject: "入服申请结果通知 - RadicalSMP",
-            html: `
-                <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-                    <h2>入服申请结果</h2>
-                    <p>${greeting}</p>
-                    <p>感谢你对 RadicalSMP 的关注！经过审核，我们很遗憾地通知你，本次入服申请未能通过。</p>
-                    ${note ? `<div style="background: #f4f4f5; padding: 12px 16px; border-radius: 6px; margin: 16px 0;"><p style="margin: 0; color: #666; font-size: 14px;">原因说明：</p><p style="margin: 4px 0 0 0;">${note}</p></div>` : ""}
-                    <p style="color: #666; font-size: 14px;">你可以在完善申请内容后重新提交。如有疑问，请联系管理员。</p>
-                </div>
-            `,
-        });
-    }
+    const safeName = recipientName ? escapeHtml(recipientName) : "你好";
+    const safeFormTitle = escapeHtml(formTitle);
+    const safeNote = note ? escapeHtml(note) : "";
+    const scoreText = totalScore !== null && totalScore !== undefined && maxScore !== null && maxScore !== undefined
+        ? `${escapeHtml(String(totalScore))} / ${escapeHtml(String(maxScore))}`
+        : null;
+
+    const statusLabel: Record<string, string> = {
+        pending: "待处理",
+        approved: "已通过",
+        rejected: "已拒绝",
+        needs_changes: "需补充",
+        not_required: "无需处理",
+    };
+    const safeStatus = processingStatus
+        ? escapeHtml(statusLabel[processingStatus] ?? processingStatus)
+        : null;
+
+    const subject = template === "join_application_result"
+        ? `入服申请结果通知 - RadicalSMP`
+        : template === "score_result"
+            ? `表单成绩通知 - ${safeFormTitle}`
+            : `表单结果通知 - ${safeFormTitle}`;
+
+    await getResend().emails.send({
+        from: FROM,
+        to,
+        subject,
+        html: `
+            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #18181b;">
+                <h2 style="margin-bottom: 16px;">${safeFormTitle}</h2>
+                <p>${safeName}，你好！</p>
+                <p>你的表单结果已更新。</p>
+                ${safeStatus ? `<p><strong>处理状态：</strong>${safeStatus}</p>` : ""}
+                ${scoreText ? `<p><strong>成绩：</strong>${scoreText}</p>` : ""}
+                ${safeNote ? `<div style="background: #f4f4f5; padding: 12px 16px; border-radius: 6px; margin: 16px 0;"><p style="margin: 0; color: #666; font-size: 14px;">备注</p><p style="margin: 4px 0 0 0;">${safeNote}</p></div>` : ""}
+                <p style="color: #666; font-size: 14px;">如果你对结果有疑问，请联系管理员。</p>
+            </div>
+        `,
+    });
 }
-
-

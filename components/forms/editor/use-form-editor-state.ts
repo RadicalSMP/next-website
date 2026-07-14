@@ -5,16 +5,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
     cloneFormField,
+    cloneResultConfig,
     createEmptyFormField,
     createUntitledFormSlug,
     DEFAULT_FORM_SETTINGS,
+    DEFAULT_RESULT_CONFIG,
     FormField,
     FormFieldOption,
+    FormResultConfig,
     FormFieldType,
     FormSettings,
     FormStatus,
     FormVisibility,
+    createJoinApplicationResultPreset,
+    normalizeResultConfig,
     normalizeFormSlug,
+    validateResultConfigForPublish,
 } from "@/lib/forms";
 import {
     fieldHasOptions,
@@ -74,24 +80,27 @@ function hasDuplicateKeys(fields: FormField[]) {
 }
 
 function normalizePayload(payload: FormEditorPayload): FormEditorPayload {
+    const fields = payload.fields.map((field) => ({
+        ...field,
+        key: sanitizeKey(field.key),
+        label: field.label.trim(),
+        helpText: field.helpText?.trim() || "",
+        placeholder: field.placeholder?.trim() || "",
+        options: sanitizeOptions(field.options ?? []),
+    }));
+
     return {
         ...payload,
         title: payload.title.trim(),
         slug: formatSlug(payload.slug),
         description: payload.description?.trim() || null,
-        fields: payload.fields.map((field) => ({
-            ...field,
-            key: sanitizeKey(field.key),
-            label: field.label.trim(),
-            helpText: field.helpText?.trim() || "",
-            placeholder: field.placeholder?.trim() || "",
-            options: sanitizeOptions(field.options ?? []),
-        })),
+        fields,
         settings: {
             submitLabel: payload.settings.submitLabel.trim() || DEFAULT_FORM_SETTINGS.submitLabel,
             successMessage: payload.settings.successMessage.trim() || DEFAULT_FORM_SETTINGS.successMessage,
             introText: payload.settings.introText.trim(),
         },
+        resultConfig: normalizeResultConfig(payload.resultConfig, fields),
     };
 }
 
@@ -116,10 +125,12 @@ function getPayloadSnapshot(payload: FormEditorPayload): string {
 
 function normalizeDraftPayload(payload: FormEditorPayload, fallbackSlug?: string): FormEditorPayload {
     const normalized = normalizePayload(payload);
+    const fields = normalized.fields.length > 0 ? normalized.fields : [makeField(0)];
     return {
         ...normalized,
         slug: normalized.slug || fallbackSlug || createUntitledFormSlug(),
-        fields: normalized.fields.length > 0 ? normalized.fields : [makeField(0)],
+        fields,
+        resultConfig: normalizeResultConfig(normalized.resultConfig, fields),
     };
 }
 
@@ -243,6 +254,16 @@ export function getPublishIssues(payload: FormEditorPayload): PublishIssue[] {
         });
     }
 
+    const resultConfigValidation = validateResultConfigForPublish(normalized.resultConfig, normalized.fields);
+    if (!resultConfigValidation.ok) {
+        issues.push({
+            id: "result-config",
+            label: "结果设置",
+            detail: resultConfigValidation.error,
+            severity: "error",
+        });
+    }
+
     return issues;
 }
 
@@ -293,6 +314,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
     const [status, setStatus] = useState<FormStatus>("draft");
     const [fields, setFields] = useState<FormField[]>([makeField(0)]);
     const [settings, setSettings] = useState<FormSettings>({ ...DEFAULT_FORM_SETTINGS });
+    const [resultConfig, setResultConfig] = useState<FormResultConfig>(() => cloneResultConfig(DEFAULT_RESULT_CONFIG));
     const [allowedUserIds, setAllowedUserIds] = useState<string[]>([]);
     const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
     const [memberSearchQuery, setMemberSearchQuery] = useState("");
@@ -322,17 +344,20 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
         allowedUserIds,
         fields,
         settings,
-    }), [allowedUserIds, description, fields, settings, slug, status, title, visibility]);
+        resultConfig,
+    }), [allowedUserIds, description, fields, resultConfig, settings, slug, status, title, visibility]);
 
     latestPayloadRef.current = payload;
 
     const storageKey = useMemo(() => getDraftKey(activeFormId), [activeFormId]);
 
     const applyPayload = useCallback((nextPayload: FormEditorPayload) => {
+        const normalizedFields = nextPayload.fields.length > 0 ? nextPayload.fields : [makeField(0)];
         const normalized = {
             ...nextPayload,
-            fields: nextPayload.fields.length > 0 ? nextPayload.fields : [makeField(0)],
+            fields: normalizedFields,
             settings: { ...DEFAULT_FORM_SETTINGS, ...nextPayload.settings },
+            resultConfig: normalizeResultConfig(nextPayload.resultConfig, normalizedFields),
         };
         setTitleState(normalized.title || "");
         setDescription(normalized.description || "");
@@ -344,6 +369,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
         setAllowedUserIds(normalized.allowedUserIds || []);
         setFields(normalized.fields);
         setSettings(normalized.settings);
+        setResultConfig(normalized.resultConfig);
         setSelectedIndex(0);
     }, []);
 
@@ -360,6 +386,9 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
 
             const form = data.form;
             const draft = form.draft_payload || {};
+            const draftFields = Array.isArray(draft.fields) && draft.fields.length > 0
+                ? draft.fields
+                : [makeField(0)];
             const loadedPayload: FormEditorPayload = {
                 title: typeof draft.title === "string" ? draft.title : "",
                 description: typeof draft.description === "string" || draft.description === null
@@ -369,10 +398,12 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
                 visibility: form.visibility || "public",
                 status: form.status || "draft",
                 allowedUserIds: form.allowed_user_ids || [],
-                fields: Array.isArray(draft.fields) && draft.fields.length > 0
-                    ? draft.fields
-                    : [makeField(0)],
+                fields: draftFields,
                 settings: { ...DEFAULT_FORM_SETTINGS, ...(draft.settings || {}) },
+                resultConfig: normalizeResultConfig(
+                    draft.resultConfig ?? draft.result_config ?? form.current_result_config ?? DEFAULT_RESULT_CONFIG,
+                    draftFields,
+                ),
             };
 
             skipNextDraftWriteRef.current = true;
@@ -703,6 +734,16 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
         setAllowedUsers((prev) => prev.filter((user) => user.id !== userId));
     }, []);
 
+    const updateResultConfig = useCallback((updater: (prev: FormResultConfig) => FormResultConfig) => {
+        setResultConfig((prev) => normalizeResultConfig(updater(prev), fields));
+    }, [fields]);
+
+    const applyJoinApplicationPreset = useCallback(() => {
+        setResultConfig(createJoinApplicationResultPreset(fields));
+        setPanel("result");
+        toast.success("已应用入服申请结果预设");
+    }, [fields]);
+
     const restoreLocalDraft = useCallback(() => {
         if (!pendingLocalDraft) return;
         skipNextDraftWriteRef.current = true;
@@ -800,6 +841,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             status,
             fields,
             settings,
+            resultConfig,
             allowedUserIds,
             allowedUsers,
             memberSearchQuery,
@@ -821,6 +863,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             setVisibility,
             setStatus,
             setSettings,
+            setResultConfig: updateResultConfig,
             setMemberSearchQuery,
             setSelectedIndex,
             setPanel,
@@ -834,6 +877,7 @@ export function useFormEditorState({ mode, formId }: FormBuilderProps) {
             removeOption,
             addMember,
             removeMember,
+            applyJoinApplicationPreset,
             restoreLocalDraft,
             discardLocalDraft,
             saveForm,

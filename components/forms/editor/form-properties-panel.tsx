@@ -2,12 +2,18 @@
 
 import {
     AlertCircle,
+    Bell,
     CheckCircle2,
     CircleDot,
+    ClipboardCheck,
     ExternalLink,
+    ListChecks,
     Loader2,
+    Plus,
     Search,
     Settings2,
+    Sparkles,
+    Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +30,20 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { FormField, FormFieldType, FormSettings, FormVisibility } from "@/lib/forms";
+import {
+    FormField,
+    FormFieldType,
+    FormResultConfig,
+    FormSettings,
+    FormVisibility,
+    ResultGradingRule,
+    ResultMatchStrategy,
+    ResultNotificationTemplate,
+    ResultRecipientSource,
+    SubmissionProcessingStatus,
+    isManualGradingField,
+    isObjectiveGradingField,
+} from "@/lib/forms";
 import { cn } from "@/lib/utils";
 import {
     advancedFieldTypes,
@@ -44,10 +63,12 @@ type FormPropertiesPanelProps = {
     formId: string | null;
     selectedField: FormField | null;
     selectedIndex: number;
+    fields: FormField[];
     fieldsLength: number;
     slug: string;
     visibility: FormVisibility;
     settings: FormSettings;
+    resultConfig: FormResultConfig;
     allowedUserIds: string[];
     allowedUsers: AllowedUser[];
     memberSearchQuery: string;
@@ -60,6 +81,8 @@ type FormPropertiesPanelProps = {
     onSlugChange: (value: string) => void;
     onVisibilityChange: (value: FormVisibility) => void;
     onSettingsChange: (updater: (prev: FormSettings) => FormSettings) => void;
+    onResultConfigChange: (updater: (prev: FormResultConfig) => FormResultConfig) => void;
+    onApplyJoinApplicationPreset: () => void;
     onFieldUpdate: (index: number, updates: Partial<FormField>) => void;
     onMemberQueryChange: (value: string) => void;
     onAddMember: (user: AllowedUser) => void;
@@ -74,9 +97,9 @@ function PanelTabs({
     value: EditorPanel;
     onChange: (panel: EditorPanel) => void;
 }) {
-    const tabs: EditorPanel[] = ["field", "form", "publish"];
+    const tabs: EditorPanel[] = ["field", "form", "result", "publish"];
     return (
-        <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+        <div className="grid grid-cols-4 gap-1 rounded-md bg-muted p-1">
             {tabs.map((tab) => (
                 <button
                     key={tab}
@@ -514,6 +537,607 @@ function FormSettingsPanel({
     );
 }
 
+const NONE_VALUE = "__none";
+
+const processingStatusLabels: Record<SubmissionProcessingStatus, string> = {
+    not_required: "无需处理",
+    pending: "待处理",
+    approved: "已通过",
+    rejected: "已拒绝",
+    needs_changes: "需补充",
+};
+
+const notificationTemplateLabels: Record<Exclude<ResultNotificationTemplate, null>, string> = {
+    join_application_result: "入服申请结果",
+    score_result: "成绩结果",
+    generic_result: "通用结果",
+};
+
+function selectableFields(fields: FormField[]) {
+    return fields.filter((field) => field.key.trim().length > 0);
+}
+
+function fieldByKey(fields: FormField[], key: string) {
+    return fields.find((field) => field.key === key) ?? null;
+}
+
+function defaultCorrectAnswer(field: FormField) {
+    if (field.type === "checkbox") {
+        return [];
+    }
+    if (field.type === "toggle") {
+        return false;
+    }
+    if (field.type === "radio" || field.type === "select") {
+        return field.options?.[0]?.value ?? "";
+    }
+    return null;
+}
+
+function createResultRule(field: FormField): ResultGradingRule {
+    const gradingType = isObjectiveGradingField(field.type) ? "auto" : "manual";
+
+    return {
+        fieldKey: field.key,
+        enabled: true,
+        gradingType,
+        correctAnswer: gradingType === "auto" ? defaultCorrectAnswer(field) : null,
+        maxScore: 1,
+        matchStrategy: "exact",
+        requiredManual: gradingType === "manual",
+        prompt: "",
+    };
+}
+
+function chooseFirstGradableField(fields: FormField[]) {
+    return selectableFields(fields).find((field) => isObjectiveGradingField(field.type) || isManualGradingField(field.type)) ?? null;
+}
+
+function resultFieldLabel(field: FormField | null, fallback: string) {
+    if (!field) return fallback;
+    return field.label || field.key || fallback;
+}
+
+function updateRuleField(rule: ResultGradingRule, field: FormField): ResultGradingRule {
+    const gradingType = isObjectiveGradingField(field.type) ? "auto" : "manual";
+    return {
+        ...rule,
+        fieldKey: field.key,
+        gradingType,
+        correctAnswer: gradingType === "auto" ? defaultCorrectAnswer(field) : null,
+        matchStrategy: field.type === "checkbox" ? rule.matchStrategy : "exact",
+        requiredManual: gradingType === "manual",
+    };
+}
+
+function CorrectAnswerInput({
+    field,
+    rule,
+    onRuleChange,
+}: {
+    field: FormField;
+    rule: ResultGradingRule;
+    onRuleChange: (updates: Partial<ResultGradingRule>) => void;
+}) {
+    if (field.type === "toggle") {
+        return (
+            <div className="flex items-center gap-2 rounded-md border p-2">
+                <Checkbox
+                    id={`result-answer-${field.key}`}
+                    checked={rule.correctAnswer === true}
+                    onCheckedChange={(checked) => onRuleChange({ correctAnswer: checked === true })}
+                />
+                <Label htmlFor={`result-answer-${field.key}`} className="text-sm font-normal">正确答案为开启</Label>
+            </div>
+        );
+    }
+
+    if (field.type === "checkbox") {
+        const selected = Array.isArray(rule.correctAnswer) ? rule.correctAnswer.map(String) : [];
+        return (
+            <div className="grid gap-2 rounded-md border p-2">
+                {(field.options ?? []).map((option, optionIndex) => {
+                    const id = `result-answer-${field.key}-${optionIndex}`;
+                    const checked = selected.includes(option.value);
+                    return (
+                        <div key={option.value} className="flex items-center gap-2">
+                            <Checkbox
+                                id={id}
+                                checked={checked}
+                                onCheckedChange={(nextChecked) => {
+                                    onRuleChange({
+                                        correctAnswer: nextChecked
+                                            ? [...selected, option.value]
+                                            : selected.filter((value) => value !== option.value),
+                                    });
+                                }}
+                            />
+                            <Label htmlFor={id} className="text-sm font-normal">{option.label}</Label>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    return (
+        <Select
+            value={typeof rule.correctAnswer === "string" ? rule.correctAnswer : ""}
+            onValueChange={(value) => onRuleChange({ correctAnswer: value })}
+        >
+            <SelectTrigger className="w-full">
+                <SelectValue placeholder="选择正确答案" />
+            </SelectTrigger>
+            <SelectContent>
+                {(field.options ?? []).map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
+}
+
+function ResultSettingsPanel({
+    fields,
+    resultConfig,
+    onResultConfigChange,
+    onApplyJoinApplicationPreset,
+}: Pick<FormPropertiesPanelProps,
+    | "fields"
+    | "resultConfig"
+    | "onResultConfigChange"
+    | "onApplyJoinApplicationPreset"
+>) {
+    const fieldsWithKeys = selectableFields(fields);
+    const objectiveFields = fieldsWithKeys.filter((field) => isObjectiveGradingField(field.type));
+    const manualFields = fieldsWithKeys.filter((field) => isManualGradingField(field.type));
+    const gradableFields = fieldsWithKeys.filter((field) => isObjectiveGradingField(field.type) || isManualGradingField(field.type));
+    const emailFields = fieldsWithKeys.filter((field) => field.type === "email" || /email|邮箱/i.test(`${field.key} ${field.label}`));
+    const totalScore = resultConfig.grading.rules.reduce((sum, rule) => sum + Number(rule.maxScore || 0), 0);
+
+    const updateRule = (index: number, updates: Partial<ResultGradingRule>) => {
+        onResultConfigChange((prev) => ({
+            ...prev,
+            grading: {
+                ...prev.grading,
+                enabled: true,
+                rules: prev.grading.rules.map((rule, ruleIndex) => (
+                    ruleIndex === index ? { ...rule, ...updates } : rule
+                )),
+            },
+        }));
+    };
+
+    const addRule = () => {
+        const field = gradableFields.find((item) => !resultConfig.grading.rules.some((rule) => rule.fieldKey === item.key))
+            ?? chooseFirstGradableField(fields);
+        if (!field) return;
+        onResultConfigChange((prev) => ({
+            ...prev,
+            grading: {
+                ...prev.grading,
+                enabled: true,
+                rules: [...prev.grading.rules, createResultRule(field)],
+            },
+        }));
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="rounded-md border bg-muted/25 p-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                    <ClipboardCheck className="size-4 text-muted-foreground" />
+                    结果收集
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    提交会进入结果中心。批改、处理和通知都是可选能力。
+                </p>
+                <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={onApplyJoinApplicationPreset}>
+                    <Sparkles className="size-4" />
+                    应用入服申请预设
+                </Button>
+            </div>
+
+            <div className="grid gap-3">
+                <div className="grid gap-2">
+                    <Label htmlFor="result-collection-label">结果标签</Label>
+                    <Input
+                        id="result-collection-label"
+                        value={resultConfig.collection.label}
+                        placeholder="问卷 / 测验 / 入服申请"
+                        onChange={(event) => onResultConfigChange((prev) => ({
+                            ...prev,
+                            collection: { ...prev.collection, label: event.target.value },
+                        }))}
+                    />
+                </div>
+                <div className="flex items-center gap-2 rounded-md border p-3">
+                    <Checkbox
+                        id="result-allow-anonymous"
+                        checked={resultConfig.collection.allowAnonymous}
+                        onCheckedChange={(checked) => onResultConfigChange((prev) => ({
+                            ...prev,
+                            collection: { ...prev.collection, allowAnonymous: checked === true },
+                        }))}
+                    />
+                    <Label htmlFor="result-allow-anonymous" className="text-sm font-normal">允许匿名结果</Label>
+                </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                    <div>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                            <ListChecks className="size-4 text-muted-foreground" />
+                            批改
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            客观题自动得分，主观题进入人工批改。
+                        </p>
+                    </div>
+                    <Checkbox
+                        aria-label="启用批改"
+                        checked={resultConfig.grading.enabled}
+                        onCheckedChange={(checked) => {
+                            onResultConfigChange((prev) => {
+                                if (checked !== true) {
+                                    return { ...prev, grading: { ...prev.grading, enabled: false, mode: "none", rules: [] } };
+                                }
+                                const fallbackField = chooseFirstGradableField(fields);
+                                return {
+                                    ...prev,
+                                    grading: {
+                                        ...prev.grading,
+                                        enabled: true,
+                                        rules: prev.grading.rules.length > 0
+                                            ? prev.grading.rules
+                                            : fallbackField ? [createResultRule(fallbackField)] : [],
+                                    },
+                                };
+                            });
+                        }}
+                    />
+                </div>
+
+                {resultConfig.grading.enabled && (
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                            <span className="text-muted-foreground">总分</span>
+                            <span className="font-medium">{totalScore}</span>
+                        </div>
+                        {resultConfig.grading.rules.length === 0 ? (
+                            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                                没有可批改题目。先添加单选、多选、下拉、开关或文本题。
+                            </div>
+                        ) : resultConfig.grading.rules.map((rule, index) => {
+                            const field = fieldByKey(fields, rule.fieldKey);
+                            const fieldOptions = rule.gradingType === "auto" ? objectiveFields : [...objectiveFields, ...manualFields];
+                            return (
+                                <div key={`${rule.fieldKey}-${index}`} className="space-y-3 rounded-md border p-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-medium">
+                                                {resultFieldLabel(field, `规则 ${index + 1}`)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {rule.gradingType === "auto" ? "客观题自动批改" : "主观题人工批改"}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-8 text-muted-foreground hover:text-destructive"
+                                            onClick={() => onResultConfigChange((prev) => ({
+                                                ...prev,
+                                                grading: {
+                                                    ...prev.grading,
+                                                    rules: prev.grading.rules.filter((_, ruleIndex) => ruleIndex !== index),
+                                                },
+                                            }))}
+                                            aria-label="删除批改规则"
+                                        >
+                                            <Trash2 className="size-4" />
+                                        </Button>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label className="text-xs text-muted-foreground">题目</Label>
+                                        <Select
+                                            value={rule.fieldKey}
+                                            onValueChange={(value) => {
+                                                const nextField = fieldByKey(fields, value);
+                                                if (nextField) {
+                                                    updateRule(index, updateRuleField(rule, nextField));
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {fieldOptions.map((item) => (
+                                                    <SelectItem key={item.key} value={item.key}>
+                                                        {item.label || item.key}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid gap-1.5">
+                                            <Label className="text-xs text-muted-foreground">满分</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={rule.maxScore}
+                                                onChange={(event) => updateRule(index, { maxScore: Number(event.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label className="text-xs text-muted-foreground">方式</Label>
+                                            <Select
+                                                value={rule.gradingType}
+                                                onValueChange={(value) => {
+                                                    const nextType = value === "auto" ? "auto" : "manual";
+                                                    if (!field) return;
+                                                    updateRule(index, {
+                                                        gradingType: nextType,
+                                                        correctAnswer: nextType === "auto" ? defaultCorrectAnswer(field) : null,
+                                                        requiredManual: nextType === "manual",
+                                                    });
+                                                }}
+                                            >
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {field && isObjectiveGradingField(field.type) && <SelectItem value="auto">自动</SelectItem>}
+                                                    {field && isManualGradingField(field.type) && <SelectItem value="manual">人工</SelectItem>}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    {field && rule.gradingType === "auto" && (
+                                        <div className="grid gap-2">
+                                            <Label className="text-xs text-muted-foreground">正确答案</Label>
+                                            <CorrectAnswerInput field={field} rule={rule} onRuleChange={(updates) => updateRule(index, updates)} />
+                                            {field.type === "checkbox" && (
+                                                <Select
+                                                    value={rule.matchStrategy}
+                                                    onValueChange={(value) => updateRule(index, { matchStrategy: value as ResultMatchStrategy })}
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="exact">完全匹配</SelectItem>
+                                                        <SelectItem value="partial">部分给分</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {rule.gradingType === "manual" && (
+                                        <div className="grid gap-2">
+                                            <div className="flex items-center gap-2 rounded-md border p-2">
+                                                <Checkbox
+                                                    id={`manual-required-${index}`}
+                                                    checked={rule.requiredManual}
+                                                    onCheckedChange={(checked) => updateRule(index, { requiredManual: checked === true })}
+                                                />
+                                                <Label htmlFor={`manual-required-${index}`} className="text-sm font-normal">必批题</Label>
+                                            </div>
+                                            <Textarea
+                                                value={rule.prompt}
+                                                rows={2}
+                                                placeholder="批改提示，可留空"
+                                                onChange={(event) => updateRule(index, { prompt: event.target.value })}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        <Button type="button" variant="outline" size="sm" className="w-full" onClick={addRule} disabled={gradableFields.length === 0}>
+                            <Plus className="size-4" />
+                            添加批改规则
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                    <div>
+                        <div className="text-sm font-medium">处理状态</div>
+                        <p className="mt-1 text-xs text-muted-foreground">用于入服申请、报名筛选等需要结论的结果。</p>
+                    </div>
+                    <Checkbox
+                        aria-label="启用处理状态"
+                        checked={resultConfig.processing.enabled}
+                        onCheckedChange={(checked) => onResultConfigChange((prev) => ({
+                            ...prev,
+                            processing: { ...prev.processing, enabled: checked === true },
+                        }))}
+                    />
+                </div>
+                {resultConfig.processing.enabled && (
+                    <div className="grid gap-2">
+                        <Label className="text-xs text-muted-foreground">默认状态</Label>
+                        <Select
+                            value={resultConfig.processing.defaultStatus}
+                            onValueChange={(value) => onResultConfigChange((prev) => ({
+                                ...prev,
+                                processing: { ...prev.processing, defaultStatus: value as SubmissionProcessingStatus },
+                            }))}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {resultConfig.processing.statuses.map((status) => (
+                                    <SelectItem key={status} value={status}>{processingStatusLabels[status]}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                    <div>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                            <Bell className="size-4 text-muted-foreground" />
+                            结果通知
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">默认手动发送，不会自动通知填写者。</p>
+                    </div>
+                    <Checkbox
+                        aria-label="启用结果通知"
+                        checked={resultConfig.notifications.enabled}
+                        onCheckedChange={(checked) => onResultConfigChange((prev) => ({
+                            ...prev,
+                            notifications: {
+                                ...prev.notifications,
+                                enabled: checked === true,
+                                template: checked === true ? (prev.notifications.template ?? "generic_result") : null,
+                            },
+                        }))}
+                    />
+                </div>
+                {resultConfig.notifications.enabled && (
+                    <div className="space-y-3">
+                        <div className="grid gap-2">
+                            <Label className="text-xs text-muted-foreground">模板</Label>
+                            <Select
+                                value={resultConfig.notifications.template ?? "generic_result"}
+                                onValueChange={(value) => onResultConfigChange((prev) => ({
+                                    ...prev,
+                                    notifications: {
+                                        ...prev.notifications,
+                                        template: value as Exclude<ResultNotificationTemplate, null>,
+                                    },
+                                }))}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(notificationTemplateLabels).map(([value, label]) => (
+                                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label className="text-xs text-muted-foreground">收件人来源</Label>
+                            <Select
+                                value={resultConfig.notifications.recipient.source}
+                                onValueChange={(value) => onResultConfigChange((prev) => ({
+                                    ...prev,
+                                    notifications: {
+                                        ...prev.notifications,
+                                        recipient: {
+                                            source: value as ResultRecipientSource,
+                                            fieldKey: value === "mapped_field" ? prev.notifications.recipient.fieldKey : null,
+                                        },
+                                    },
+                                }))}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="mapped_field">表单邮箱字段</SelectItem>
+                                    <SelectItem value="account_email">账号邮箱</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {resultConfig.notifications.recipient.source === "mapped_field" && (
+                            <div className="grid gap-2">
+                                <Label className="text-xs text-muted-foreground">邮箱字段</Label>
+                                <Select
+                                    value={resultConfig.notifications.recipient.fieldKey ?? NONE_VALUE}
+                                    onValueChange={(value) => onResultConfigChange((prev) => ({
+                                        ...prev,
+                                        notifications: {
+                                            ...prev.notifications,
+                                            recipient: {
+                                                ...prev.notifications.recipient,
+                                                fieldKey: value === NONE_VALUE ? null : value,
+                                            },
+                                        },
+                                    }))}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={NONE_VALUE}>未选择</SelectItem>
+                                        {(emailFields.length > 0 ? emailFields : fieldsWithKeys).map((field) => (
+                                            <SelectItem key={field.key} value={field.key}>{field.label || field.key}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+                <div>
+                    <div className="text-sm font-medium">字段映射</div>
+                    <p className="mt-1 text-xs text-muted-foreground">映射后的字段会用于结果详情、通知和入服申请展示。</p>
+                </div>
+                {([
+                    ["email", "邮箱"],
+                    ["playerName", "玩家名"],
+                    ["qq", "QQ"],
+                    ["mcid", "Minecraft ID"],
+                ] as const).map(([key, label]) => (
+                    <div key={key} className="grid gap-1.5">
+                        <Label className="text-xs text-muted-foreground">{label}</Label>
+                        <Select
+                            value={resultConfig.fieldMappings[key] ?? NONE_VALUE}
+                            onValueChange={(value) => onResultConfigChange((prev) => ({
+                                ...prev,
+                                fieldMappings: {
+                                    ...prev.fieldMappings,
+                                    [key]: value === NONE_VALUE ? null : value,
+                                },
+                            }))}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE_VALUE}>未映射</SelectItem>
+                                {fieldsWithKeys.map((field) => (
+                                    <SelectItem key={field.key} value={field.key}>{field.label || field.key}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function PublishPanel({
     formId,
     publishIssues,
@@ -634,6 +1258,9 @@ export function FormPropertiesPanel(props: FormPropertiesPanelProps) {
                 )}
                 {panel === "form" && (
                     <FormSettingsPanel {...props} />
+                )}
+                {panel === "result" && (
+                    <ResultSettingsPanel {...props} />
                 )}
                 {panel === "publish" && (
                     <PublishPanel {...props} />

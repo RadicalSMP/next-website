@@ -1,0 +1,19 @@
+{
+  "runId": "20260713T195035-form-results-grading",
+  "phase": "editor-results-ui",
+  "status": "completed",
+  "outputs": [
+    "编辑器结果设置面板",
+    "入服申请通用预设",
+    "全局结果中心",
+    "单表单结果列表",
+    "结果详情和人工批改界面",
+    "处理与通知对话框",
+    "Dashboard 结果中心入口"
+  ],
+  "verification": [
+    "先前浏览器回归已验证结果列表、详情、人工批改、处理动作和 CSV 导出",
+    "2026-07-13 ESLint 通过",
+    "2026-07-13 Next.js 编译和 TypeScript 阶段通过"
+  ]
+}

@@ -100,6 +100,7 @@ export const saveStateLabels = {
 export const panelLabels = {
     field: "字段",
     form: "表单",
+    result: "结果",
     publish: "发布",
 } as const;
 

@@ -1,0 +1,18 @@
+{
+  "runId": "20260713T195035-form-results-grading",
+  "phase": "core-model-api",
+  "status": "completed",
+  "outputs": [
+    "form_versions.result_config 版本快照",
+    "form_submissions 批改和处理摘要字段",
+    "submission_grades 逐题批改表",
+    "submission_events 事件历史表",
+    "结果列表、详情、批改、处理和通知 API",
+    "提交时自动批改和事务写入"
+  ],
+  "verification": [
+    "先前浏览器回归已验证普通结果、自动批改、人工批改和处理事件",
+    "2026-07-13 静态检查未发现旧 Review 缓存符号",
+    "2026-07-13 tsc --noEmit 通过"
+  ]
+}

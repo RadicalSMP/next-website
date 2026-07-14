@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
         description: body.description ?? null,
         fields: body.fields ?? [],
         settings: body.settings ?? DEFAULT_FORM_SETTINGS,
+        resultConfig: body.resultConfig,
     });
     if (!versionResult.ok) {
         return NextResponse.json({ error: versionResult.error }, { status: 400 });
