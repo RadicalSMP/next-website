@@ -1,0 +1,33 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "phase": "wave-02-access-and-revisions",
+  "status": "completed",
+  "timestamp": "2026-07-15T23:01:42+08:00",
+  "outputs": [
+    "统一提交访问授权决策",
+    "匿名令牌生成、哈希存储、一次兑换、消费与撤销",
+    "补交请求创建、过期清理与取消服务",
+    "全部字段和指定字段差异校验",
+    "不可变修订创建、重新评分与当前投影切换",
+    "修订历史和字段级差异",
+    "同源写请求校验工具"
+  ],
+  "verification": [
+    "账号所有者可查看自己的提交",
+    "管理员可查看但不能代替匿名用户补交",
+    "非所有者和无令牌匿名访问被拒绝",
+    "篡改、过期和撤销令牌被拒绝",
+    "URL 令牌兑换后不可重放",
+    "补交成功和请求取消只移除 revise scope，保留 view scope",
+    "指定字段越权修改返回 403",
+    "全部字段模式允许修改启用字段",
+    "同一请求重复补交返回 409",
+    "新修订重新自动评分并清空主观题分数",
+    "旧修订答案与评分保持不变",
+    "bun run verify:form-revisions 通过",
+    "bun run lint 通过",
+    "bunx tsc --noEmit 通过",
+    "bun run build 通过",
+    "git diff --check 通过"
+  ]
+}
