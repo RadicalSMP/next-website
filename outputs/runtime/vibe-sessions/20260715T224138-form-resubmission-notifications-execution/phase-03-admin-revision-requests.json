@@ -1,0 +1,33 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "phase": "wave-03-admin-revision-requests",
+  "status": "completed",
+  "timestamp": "2026-07-15T23:46:14+08:00",
+  "outputs": [
+    "管理员创建、取消和重发补交请求 API",
+    "管理员修订历史和字段差异 API",
+    "结果详情当前修订评分、历史修订、开放请求和通知投递查询",
+    "匿名收件人解析与无邮箱拒绝",
+    "补交请求邮件模板、匿名访问令牌和投递幂等基础",
+    "通用 process API 移除 request_changes",
+    "需补充 Dialog、开放请求摘要、修订对比和通知记录界面"
+  ],
+  "verification": [
+    "HTTP 创建 selected 补交请求返回 open",
+    "结果详情缓存立即返回 active request",
+    "当前修订返回 2 条只读逐题评分和正确汇总",
+    "取消补交请求返回 cancelled",
+    "旧 request_changes 接口返回 409 迁移提示",
+    "桌面浏览器完成创建和取消补交请求",
+    "390x844 页面与 Dialog 无横向溢出",
+    "浏览器控制台 0 error、0 warning",
+    "bun run lint 通过",
+    "bunx tsc --noEmit 通过",
+    "bun run build 通过",
+    "git diff --check 通过"
+  ],
+  "notes": [
+    "登录测试夹具关闭 autoSend，因此创建请求时通知按配置跳过，未向外部测试邮箱发信",
+    "成绩完成和处理结果通知将在波次 6 基于同一投递服务扩展"
+  ]
+}

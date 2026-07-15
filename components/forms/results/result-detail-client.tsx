@@ -5,15 +5,20 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
     ArrowLeft,
+    Ban,
     Bell,
     CheckCircle2,
+    Clock3,
+    GitCompareArrows,
     Loader2,
     MessageSquare,
+    RefreshCw,
     Send,
     XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Dialog,
     DialogContent,
@@ -59,6 +64,11 @@ type Submission = {
     processed_by_name: string | null;
     total_score: string | number | null;
     max_score: string | number | null;
+    current_revision_id: string | null;
+    active_revision_request_id: string | null;
+    revision_count: number;
+    revision_status: string;
+    last_resubmitted_at: string | null;
 };
 
 type GradeRow = {
@@ -94,6 +104,47 @@ type ResultDetailPayload = {
     submission: Submission;
     grades: GradeRow[];
     events: EventRow[];
+    revisions: RevisionRow[];
+    activeRequest: ActiveRevisionRequest | null;
+    notifications: NotificationRow[];
+};
+
+type RevisionRow = {
+    id: string;
+    revision_number: number;
+    data: Record<string, unknown>;
+    field_snapshot: unknown;
+    grades: GradeRow[];
+    total_score: string | number | null;
+    max_score: string | number | null;
+    grading_status: string;
+    submitted_via: string;
+    submitted_by_name: string | null;
+    created_at: string;
+    request_reason: string | null;
+    request_status: string | null;
+};
+
+type ActiveRevisionRequest = {
+    id: string;
+    edit_scope: "all" | "selected";
+    editable_field_keys: string[];
+    reason: string;
+    status: string;
+    expires_at: string | null;
+    requested_by_name: string | null;
+    created_at: string;
+};
+
+type NotificationRow = {
+    id: string;
+    event_type: string;
+    status: string;
+    attempts: number;
+    recipient: string;
+    last_error: string | null;
+    created_at: string;
+    sent_at: string | null;
 };
 
 type ManualGradeDraft = {
@@ -102,7 +153,8 @@ type ManualGradeDraft = {
     comment: string;
 };
 
-type ProcessAction = "approve" | "reject" | "request_changes" | "comment";
+type ProcessAction = "approve" | "reject" | "comment";
+type RevisionEditScope = "all" | "selected";
 
 type ResultDetailClientProps = {
     initialDetail: ResultDetailPayload;
@@ -128,6 +180,36 @@ const eventTypeLabels: Record<string, string> = {
     grading: "批改",
     processing: "处理",
     notification: "通知",
+    revision: "修订",
+};
+
+const revisionStatusLabels: Record<string, string> = {
+    none: "首次提交",
+    requested: "待补充",
+    resubmitted: "已补交",
+    open: "开放中",
+    fulfilled: "已完成",
+    cancelled: "已取消",
+    expired: "已过期",
+};
+
+const revisionSourceLabels: Record<string, string> = {
+    initial: "首次提交",
+    account: "账户补交",
+    token: "链接补交",
+};
+
+const notificationEventLabels: Record<string, string> = {
+    revision_requested: "补交通知",
+    grading_completed: "批改通知",
+    processing_changed: "处理通知",
+};
+
+const notificationStatusLabels: Record<string, string> = {
+    pending: "待发送",
+    sending: "发送中",
+    sent: "已发送",
+    failed: "发送失败",
 };
 
 function toNumber(value: string | number | null | undefined) {
@@ -145,7 +227,8 @@ function formatScore(score: string | number | null, maxScore: string | number | 
 
 function formatDate(value: string | null) {
     if (!value) return "暂无";
-    return new Date(value).toLocaleString("zh-CN");
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "暂无" : date.toLocaleString("zh-CN");
 }
 
 function formatDuration(seconds: number | null) {
@@ -156,17 +239,35 @@ function formatDuration(seconds: number | null) {
     return rest > 0 ? `${minutes} 分 ${rest} 秒` : `${minutes} 分钟`;
 }
 
-function formatValue(value: unknown) {
-    if (Array.isArray(value)) return value.length > 0 ? value.join("、") : "—";
+function formatValue(value: unknown): string {
+    if (Array.isArray(value)) return value.length > 0 ? value.map((item) => formatValue(item)).join("、") : "—";
     if (typeof value === "boolean") return value ? "是" : "否";
     if (value === null || value === undefined || value === "") return "—";
+    if (typeof value === "object") return JSON.stringify(value, null, 2);
     return String(value);
 }
 
+function valuesEqual(left: unknown, right: unknown): boolean {
+    if (Object.is(left, right)) return true;
+    if (Array.isArray(left) && Array.isArray(right)) {
+        const leftValues = [...left].sort((a, b) => formatValue(a).localeCompare(formatValue(b)));
+        const rightValues = [...right].sort((a, b) => formatValue(a).localeCompare(formatValue(b)));
+        return leftValues.length === rightValues.length &&
+            leftValues.every((value, index) => valuesEqual(value, rightValues[index]));
+    }
+    if (left && right && typeof left === "object" && typeof right === "object") {
+        const leftRecord = left as Record<string, unknown>;
+        const rightRecord = right as Record<string, unknown>;
+        const keys = new Set([...Object.keys(leftRecord), ...Object.keys(rightRecord)]);
+        return [...keys].every((key) => valuesEqual(leftRecord[key], rightRecord[key]));
+    }
+    return false;
+}
+
 function getBadgeVariant(value: string) {
-    if (value === "rejected") return "destructive" as const;
-    if (value === "manual_required" || value === "pending" || value === "needs_changes") return "secondary" as const;
-    if (value === "approved" || value === "graded" || value === "auto_graded") return "default" as const;
+    if (value === "rejected" || value === "failed") return "destructive" as const;
+    if (value === "manual_required" || value === "pending" || value === "sending" || value === "needs_changes") return "secondary" as const;
+    if (value === "approved" || value === "graded" || value === "auto_graded" || value === "sent") return "default" as const;
     return "outline" as const;
 }
 
@@ -188,7 +289,15 @@ function createManualDrafts(grades: GradeRow[]) {
 }
 
 function normalizeDetail(payload: ResultDetailPayload): ResultDetailPayload {
-    return JSON.parse(JSON.stringify(payload)) as ResultDetailPayload;
+    const normalized = JSON.parse(JSON.stringify(payload)) as ResultDetailPayload;
+    return {
+        ...normalized,
+        grades: normalized.grades ?? [],
+        events: normalized.events ?? [],
+        revisions: normalized.revisions ?? [],
+        activeRequest: normalized.activeRequest ?? null,
+        notifications: normalized.notifications ?? [],
+    };
 }
 
 export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
@@ -201,6 +310,14 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
     const [processNote, setProcessNote] = useState("");
     const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
     const [notifyNote, setNotifyNote] = useState("");
+    const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
+    const [revisionReason, setRevisionReason] = useState("");
+    const [revisionExpiresAt, setRevisionExpiresAt] = useState("");
+    const [revisionEditScope, setRevisionEditScope] = useState<RevisionEditScope>("all");
+    const [editableFieldKeys, setEditableFieldKeys] = useState<string[]>([]);
+    const [creatingRevisionRequest, setCreatingRevisionRequest] = useState(false);
+    const [requestAction, setRequestAction] = useState<"cancel" | "resend" | null>(null);
+    const [selectedRevisionIds, setSelectedRevisionIds] = useState<string[]>([]);
 
     const submission = detail.submission;
     const fields = useMemo<FormField[]>(() => {
@@ -208,6 +325,35 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
         return snapshotFields.length > 0 ? snapshotFields : normalizeFormFields(submission.fields);
     }, [submission.field_snapshot, submission.fields]);
     const resultConfig = useMemo<FormResultConfig>(() => normalizeResultConfig(submission.result_config, fields), [fields, submission.result_config]);
+    const editableFields = useMemo(() => fields.filter((field) => field.enabled), [fields]);
+    const selectedRevisions = useMemo(() => detail.revisions
+        .filter((revision) => selectedRevisionIds.includes(revision.id))
+        .sort((left, right) => left.revision_number - right.revision_number), [detail.revisions, selectedRevisionIds]);
+    const revisionDiff = useMemo(() => {
+        if (selectedRevisions.length !== 2) return [];
+        const [fromRevision, toRevision] = selectedRevisions;
+        const fieldMap = new Map<string, FormField>();
+        for (const field of [
+            ...normalizeFormFields(fromRevision.field_snapshot),
+            ...normalizeFormFields(toRevision.field_snapshot),
+            ...fields,
+        ]) {
+            fieldMap.set(field.key, field);
+        }
+        const keys = new Set([
+            ...fieldMap.keys(),
+            ...Object.keys(fromRevision.data ?? {}),
+            ...Object.keys(toRevision.data ?? {}),
+        ]);
+        return [...keys]
+            .filter((key) => !valuesEqual(fromRevision.data?.[key], toRevision.data?.[key]))
+            .map((key) => ({
+                key,
+                label: fieldMap.get(key)?.label || key,
+                from: fromRevision.data?.[key],
+                to: toRevision.data?.[key],
+            }));
+    }, [fields, selectedRevisions]);
     const manualGrades = detail.grades.filter((grade) => grade.grading_type === "manual");
     const autoGrades = detail.grades.filter((grade) => grade.grading_type === "auto");
     const mappedValues = {
@@ -282,6 +428,91 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
         }
     };
 
+    const createRevisionRequest = async () => {
+        const reason = revisionReason.trim();
+        if (!reason) {
+            toast.error("请填写需补充原因");
+            return;
+        }
+        if (revisionEditScope === "selected" && editableFieldKeys.length === 0) {
+            toast.error("请至少选择一个可修改字段");
+            return;
+        }
+
+        setCreatingRevisionRequest(true);
+        try {
+            const expiresAt = revisionExpiresAt ? new Date(revisionExpiresAt).toISOString() : null;
+            const res = await fetch(`/api/forms/${submission.form_id}/results/${submission.id}/revision-requests`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    reason,
+                    editScope: revisionEditScope,
+                    editableFieldKeys: revisionEditScope === "selected" ? editableFieldKeys : [],
+                    expiresAt,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "发起补充请求失败");
+                return;
+            }
+            toast.success("补充请求已发起");
+            setRevisionDialogOpen(false);
+            setRevisionReason("");
+            setRevisionExpiresAt("");
+            setRevisionEditScope("all");
+            setEditableFieldKeys([]);
+            await refreshDetail();
+        } catch {
+            toast.error("发起补充请求失败");
+        } finally {
+            setCreatingRevisionRequest(false);
+        }
+    };
+
+    const submitRequestAction = async (action: "cancel" | "resend") => {
+        const activeRequest = detail.activeRequest;
+        if (!activeRequest) return;
+
+        setRequestAction(action);
+        try {
+            const res = await fetch(
+                `/api/forms/${submission.form_id}/results/${submission.id}/revision-requests/${activeRequest.id}/${action}`,
+                {
+                    method: "POST",
+                    headers: action === "resend" ? { "Content-Type": "application/json" } : undefined,
+                    body: action === "resend"
+                        ? JSON.stringify({ clientRequestId: crypto.randomUUID() })
+                        : undefined,
+                },
+            );
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || (action === "cancel" ? "取消补充请求失败" : "重发通知失败"));
+                return;
+            }
+            toast.success(action === "cancel" ? "补充请求已取消" : "补交通知已重发");
+            await refreshDetail();
+        } catch {
+            toast.error(action === "cancel" ? "取消补充请求失败" : "重发通知失败");
+        } finally {
+            setRequestAction(null);
+        }
+    };
+
+    const toggleRevisionSelection = (revisionId: string, checked: boolean) => {
+        setSelectedRevisionIds((current) => {
+            if (!checked) return current.filter((id) => id !== revisionId);
+            if (current.includes(revisionId)) return current;
+            if (current.length >= 2) {
+                toast.error("最多选择两个修订版本进行比较");
+                return current;
+            }
+            return [...current, revisionId];
+        });
+    };
+
     const sendNotification = async () => {
         setNotifying(true);
         try {
@@ -310,9 +541,7 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
         ? "通过"
         : processDialog === "reject"
             ? "拒绝"
-            : processDialog === "request_changes"
-                ? "标记需补充"
-                : "记录备注";
+            : "记录备注";
 
     return (
         <div className="space-y-6">
@@ -337,13 +566,21 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
                                 <CheckCircle2 className="size-4" />
                                 通过
                             </Button>
-                            <Button variant="outline" onClick={() => setProcessDialog("request_changes")}>
-                                <MessageSquare className="size-4" />
+                            <Button
+                                variant="outline"
+                                onClick={() => setRevisionDialogOpen(true)}
+                                disabled={Boolean(detail.activeRequest)}
+                            >
+                                <RefreshCw className="size-4" />
                                 需补充
                             </Button>
                             <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setProcessDialog("reject")}>
                                 <XCircle className="size-4" />
                                 拒绝
+                            </Button>
+                            <Button variant="outline" onClick={() => setProcessDialog("comment")}>
+                                <MessageSquare className="size-4" />
+                                备注
                             </Button>
                         </>
                     )}
@@ -383,9 +620,75 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
                 <div className="rounded-md border bg-background p-4">
                     <p className="text-sm text-muted-foreground">填写元数据</p>
                     <p className="mt-2 text-sm">用时 {formatDuration(submission.duration)}</p>
-                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">IP {submission.ip_address || "—"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        共 {submission.revision_count || detail.revisions.length} 个版本 · {revisionStatusLabels[submission.revision_status] || submission.revision_status || "首次提交"}
+                    </p>
                 </div>
             </div>
+
+            {detail.activeRequest && (
+                <section className="rounded-md border border-primary/30 bg-background">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
+                        <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="font-semibold">开放的补充请求</h2>
+                                <Badge variant="secondary">
+                                    {revisionStatusLabels[detail.activeRequest.status] || detail.activeRequest.status}
+                                </Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {detail.activeRequest.requested_by_name || "管理员"} · {formatDate(detail.activeRequest.created_at)}
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => submitRequestAction("resend")}
+                                disabled={requestAction !== null}
+                            >
+                                {requestAction === "resend" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                                重发通知
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => submitRequestAction("cancel")}
+                                disabled={requestAction !== null}
+                            >
+                                {requestAction === "cancel" ? <Loader2 className="size-4 animate-spin" /> : <Ban className="size-4" />}
+                                取消请求
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_minmax(240px,0.7fr)]">
+                        <div>
+                            <p className="text-sm text-muted-foreground">补充原因</p>
+                            <p className="mt-1 break-words whitespace-pre-wrap text-sm">{detail.activeRequest.reason}</p>
+                        </div>
+                        <div className="space-y-3 text-sm">
+                            <div>
+                                <p className="text-muted-foreground">可修改范围</p>
+                                <p className="mt-1">
+                                    {detail.activeRequest.edit_scope === "all"
+                                        ? "全部字段"
+                                        : detail.activeRequest.editable_field_keys
+                                            .map((key) => fields.find((field) => field.key === key)?.label || key)
+                                            .join("、") || "未指定字段"}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">截止时间</p>
+                                <p className="mt-1 flex items-center gap-1.5">
+                                    <Clock3 className="size-4" />
+                                    {detail.activeRequest.expires_at ? formatDate(detail.activeRequest.expires_at) : "不设截止时间"}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
                 <div className="space-y-6">
@@ -404,6 +707,130 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
                                 </div>
                             ))}
                         </div>
+                    </section>
+
+                    <section className="rounded-md border bg-background">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+                            <div>
+                                <h2 className="font-semibold">修订时间线</h2>
+                                <p className="mt-1 text-xs text-muted-foreground">选择两个版本可比较字段变化</p>
+                            </div>
+                            <Badge variant="outline">已选 {selectedRevisionIds.length}/2</Badge>
+                        </div>
+                        {detail.revisions.length === 0 ? (
+                            <p className="p-4 text-sm text-muted-foreground">暂无修订记录</p>
+                        ) : (
+                            <div className="divide-y">
+                                {detail.revisions.map((revision) => {
+                                    const selected = selectedRevisionIds.includes(revision.id);
+                                    return (
+                                        <div key={revision.id} className="flex gap-3 px-4 py-3">
+                                            <Checkbox
+                                                id={`revision-${revision.id}`}
+                                                checked={selected}
+                                                onCheckedChange={(checked) => toggleRevisionSelection(revision.id, checked === true)}
+                                                aria-label={`选择第 ${revision.revision_number} 版`}
+                                            />
+                                            <label htmlFor={`revision-${revision.id}`} className="min-w-0 flex-1 cursor-pointer">
+                                                <span className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-medium">第 {revision.revision_number} 版</span>
+                                                    <Badge variant="outline">
+                                                        {revisionSourceLabels[revision.submitted_via] || revision.submitted_via}
+                                                    </Badge>
+                                                    <Badge variant={getBadgeVariant(revision.grading_status)}>
+                                                        {gradingStatusLabels[revision.grading_status] || revision.grading_status} · {formatScore(revision.total_score, revision.max_score)}
+                                                    </Badge>
+                                                    {submission.current_revision_id === revision.id && <Badge>当前版本</Badge>}
+                                                </span>
+                                                <span className="mt-1 block text-xs text-muted-foreground">
+                                                    {revision.submitted_by_name || "匿名填写者"} · {formatDate(revision.created_at)}
+                                                </span>
+                                                {revision.request_reason && (
+                                                    <span className="mt-2 block break-words whitespace-pre-wrap text-sm text-muted-foreground">
+                                                        补充原因：{revision.request_reason}
+                                                    </span>
+                                                )}
+                                            </label>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {selectedRevisions.length === 2 && (
+                            <div className="border-t">
+                                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                                    <h3 className="flex items-center gap-2 font-medium">
+                                        <GitCompareArrows className="size-4" />
+                                        第 {selectedRevisions[0].revision_number} 版 → 第 {selectedRevisions[1].revision_number} 版
+                                    </h3>
+                                    <Badge variant={revisionDiff.length > 0 ? "secondary" : "outline"}>
+                                        {revisionDiff.length} 个字段变化
+                                    </Badge>
+                                </div>
+                                <div className="grid gap-3 border-t px-4 py-3 text-sm md:grid-cols-2">
+                                    {selectedRevisions.map((revision) => (
+                                        <div key={revision.id} className="min-w-0 space-y-2">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <span className="text-muted-foreground">第 {revision.revision_number} 版评分</span>
+                                                <span className="flex flex-wrap items-center gap-2">
+                                                    <Badge variant={getBadgeVariant(revision.grading_status)}>
+                                                        {gradingStatusLabels[revision.grading_status] || revision.grading_status}
+                                                    </Badge>
+                                                    <span className="font-mono">{formatScore(revision.total_score, revision.max_score)}</span>
+                                                </span>
+                                            </div>
+                                            {revision.grades.length > 0 && (
+                                                <details className="border-t pt-2">
+                                                    <summary className="cursor-pointer text-xs text-muted-foreground">查看逐题评分</summary>
+                                                    <div className="mt-2 divide-y text-xs">
+                                                        {revision.grades.map((grade) => (
+                                                            <div key={grade.id} className="flex flex-wrap justify-between gap-2 py-2">
+                                                                <span className="min-w-0 break-words">
+                                                                    {grade.field_label}
+                                                                    {grade.comment && (
+                                                                        <span className="mt-0.5 block text-muted-foreground">{grade.comment}</span>
+                                                                    )}
+                                                                </span>
+                                                                <span className="shrink-0 font-mono">{formatScore(grade.score, grade.max_score)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </details>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                {revisionDiff.length === 0 ? (
+                                    <p className="border-t px-4 py-3 text-sm text-muted-foreground">两个版本的字段内容一致</p>
+                                ) : (
+                                    <div className="divide-y border-t">
+                                        {revisionDiff.map((change) => (
+                                            <div key={change.key} className="px-4 py-3">
+                                                <div className="mb-2">
+                                                    <p className="text-sm font-medium">{change.label}</p>
+                                                    <p className="font-mono text-xs text-muted-foreground">{change.key}</p>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div className="min-w-0 border-l-2 border-destructive/50 pl-3">
+                                                        <p className="text-xs text-muted-foreground">第 {selectedRevisions[0].revision_number} 版</p>
+                                                        <p className="mt-1 max-h-48 overflow-auto break-words whitespace-pre-wrap text-sm">
+                                                            {formatValue(change.from)}
+                                                        </p>
+                                                    </div>
+                                                    <div className="min-w-0 border-l-2 border-primary/50 pl-3">
+                                                        <p className="text-xs text-muted-foreground">第 {selectedRevisions[1].revision_number} 版</p>
+                                                        <p className="mt-1 max-h-48 overflow-auto break-words whitespace-pre-wrap text-sm">
+                                                            {formatValue(change.to)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </section>
 
                     {detail.grades.length > 0 && (
@@ -525,6 +952,39 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
 
                     <section className="rounded-md border bg-background">
                         <div className="border-b px-4 py-3">
+                            <h2 className="font-semibold">通知记录</h2>
+                        </div>
+                        <div className="divide-y">
+                            {detail.notifications.length === 0 ? (
+                                <p className="p-4 text-sm text-muted-foreground">暂无通知记录</p>
+                            ) : detail.notifications.map((notification) => (
+                                <div key={notification.id} className="p-4 text-sm">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span className="flex flex-wrap items-center gap-2">
+                                            <Badge variant="outline">
+                                                {notificationEventLabels[notification.event_type] || notification.event_type}
+                                            </Badge>
+                                            <Badge variant={getBadgeVariant(notification.status)}>
+                                                {notificationStatusLabels[notification.status] || notification.status}
+                                            </Badge>
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">尝试 {notification.attempts} 次</span>
+                                    </div>
+                                    <p className="mt-2 break-all">{notification.recipient}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        创建于 {formatDate(notification.created_at)}
+                                        {notification.sent_at ? ` · 发送于 ${formatDate(notification.sent_at)}` : ""}
+                                    </p>
+                                    {notification.last_error && (
+                                        <p className="mt-2 break-words whitespace-pre-wrap text-destructive">{notification.last_error}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    <section className="rounded-md border bg-background">
+                        <div className="border-b px-4 py-3">
                             <h2 className="font-semibold">事件历史</h2>
                         </div>
                         <div className="divide-y">
@@ -547,6 +1007,103 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
                     </section>
                 </aside>
             </div>
+
+            <Dialog open={revisionDialogOpen} onOpenChange={(open) => {
+                if (!creatingRevisionRequest) setRevisionDialogOpen(open);
+            }}>
+                <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>发起补充请求</DialogTitle>
+                        <DialogDescription>指定填写者需要补充的内容和可修改范围。</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5">
+                        <div className="space-y-2">
+                            <Label htmlFor="revision-reason">补充原因</Label>
+                            <Textarea
+                                id="revision-reason"
+                                value={revisionReason}
+                                onChange={(event) => setRevisionReason(event.target.value)}
+                                placeholder="说明需要补充或修正的内容"
+                                aria-required="true"
+                                className="min-h-24"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="revision-expires-at">截止时间</Label>
+                            <Input
+                                id="revision-expires-at"
+                                type="datetime-local"
+                                value={revisionExpiresAt}
+                                onChange={(event) => setRevisionExpiresAt(event.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">可选，留空表示不设截止时间。</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>可修改范围</Label>
+                            <div className="inline-flex" role="group" aria-label="可修改范围">
+                                <Button
+                                    type="button"
+                                    variant={revisionEditScope === "all" ? "default" : "outline"}
+                                    className="rounded-r-none"
+                                    aria-pressed={revisionEditScope === "all"}
+                                    onClick={() => setRevisionEditScope("all")}
+                                >
+                                    全部字段
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={revisionEditScope === "selected" ? "default" : "outline"}
+                                    className="-ml-px rounded-l-none"
+                                    aria-pressed={revisionEditScope === "selected"}
+                                    onClick={() => setRevisionEditScope("selected")}
+                                >
+                                    指定字段
+                                </Button>
+                            </div>
+                        </div>
+                        {revisionEditScope === "selected" && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label>可修改字段</Label>
+                                    <span className="text-xs text-muted-foreground">已选 {editableFieldKeys.length} 项</span>
+                                </div>
+                                <div className="max-h-56 divide-y overflow-y-auto rounded-md border">
+                                    {editableFields.map((field) => {
+                                        const checked = editableFieldKeys.includes(field.key);
+                                        return (
+                                            <label key={field.key} className="flex cursor-pointer items-start gap-3 px-3 py-2.5">
+                                                <Checkbox
+                                                    checked={checked}
+                                                    onCheckedChange={(nextChecked) => setEditableFieldKeys((current) => (
+                                                        nextChecked === true
+                                                            ? [...new Set([...current, field.key])]
+                                                            : current.filter((key) => key !== field.key)
+                                                    ))}
+                                                    aria-label={`允许修改${field.label}`}
+                                                />
+                                                <span className="min-w-0">
+                                                    <span className="block text-sm font-medium">{field.label}</span>
+                                                    <span className="block break-all font-mono text-xs text-muted-foreground">{field.key}</span>
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                    {editableFields.length === 0 && (
+                                        <p className="px-3 py-4 text-sm text-muted-foreground">当前版本没有可修改字段</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRevisionDialogOpen(false)} disabled={creatingRevisionRequest}>取消</Button>
+                        <Button onClick={createRevisionRequest} disabled={creatingRevisionRequest}>
+                            {creatingRevisionRequest && <Loader2 className="size-4 animate-spin" />}
+                            发起请求
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={processDialog !== null} onOpenChange={(open) => {
                 if (!open && !processing) setProcessDialog(null);

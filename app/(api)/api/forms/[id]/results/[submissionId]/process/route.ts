@@ -3,18 +3,18 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { invalidateSubmissionCache } from "@/lib/cache";
+import { isSameOriginMutation } from "@/lib/form-submission-access";
 import {
     normalizeFormFields,
     normalizeResultConfig,
     type SubmissionProcessingStatus,
 } from "@/lib/forms";
 
-type ProcessAction = "approve" | "reject" | "request_changes" | "comment";
+type ProcessAction = "approve" | "reject" | "comment";
 
 const actionToStatus = {
     approve: "approved",
     reject: "rejected",
-    request_changes: "needs_changes",
     comment: null,
 } as const;
 
@@ -29,7 +29,6 @@ async function requireAdmin() {
 function isProcessAction(value: unknown): value is ProcessAction {
     return value === "approve" ||
         value === "reject" ||
-        value === "request_changes" ||
         value === "comment";
 }
 
@@ -41,6 +40,9 @@ export async function POST(
     if (!session) {
         return NextResponse.json({ error: "未授权" }, { status: 403 });
     }
+    if (!isSameOriginMutation(request)) {
+        return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
+    }
 
     const { id, submissionId } = await params;
     const body = await request.json().catch(() => null) as unknown;
@@ -50,6 +52,12 @@ export async function POST(
 
     const payload = body as Record<string, unknown>;
     const actionValue = payload.action;
+    if (actionValue === "request_changes") {
+        return NextResponse.json(
+            { error: "需补充状态已迁移到专用补交请求接口" },
+            { status: 409 },
+        );
+    }
     if (!isProcessAction(actionValue)) {
         return NextResponse.json({ error: "无效的处理动作" }, { status: 400 });
     }

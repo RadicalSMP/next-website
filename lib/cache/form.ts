@@ -495,14 +495,15 @@ export const getResultDetail = unstable_cache(
                 return null;
             }
 
-            const [gradesResult, eventsResult] = await Promise.all([
+            const [gradesResult, eventsResult, revisionsResult, activeRequestResult, notificationsResult] = await Promise.all([
                 pool.query(
                     `SELECT sg.*, grader.name AS graded_by_name
                      FROM submission_grades sg
                      LEFT JOIN "user" grader ON sg.graded_by = grader.id
                      WHERE sg.submission_id = $1
+                       AND sg.revision_id = $2
                      ORDER BY sg.created_at ASC`,
-                    [submissionId],
+                    [submissionId, submission.current_revision_id],
                 ),
                 pool.query(
                     `SELECT se.*, actor.name AS actor_name
@@ -512,12 +513,86 @@ export const getResultDetail = unstable_cache(
                      ORDER BY se.created_at DESC`,
                     [submissionId],
                 ),
+                pool.query(
+                    `SELECT r.*, submitter.name AS submitted_by_name,
+                            srr.reason AS request_reason,
+                            srr.status AS request_status,
+                            srr.edit_scope AS request_edit_scope,
+                            srr.editable_field_keys AS request_editable_field_keys,
+                            grade_summary.grades,
+                            grade_summary.total_score,
+                            grade_summary.max_score,
+                            CASE
+                                WHEN grade_summary.grade_count = 0 THEN 'not_required'
+                                WHEN grade_summary.required_manual_missing_count > 0 THEN 'manual_required'
+                                WHEN grade_summary.manual_count > 0 THEN 'graded'
+                                ELSE 'auto_graded'
+                            END AS grading_status
+                     FROM form_submission_revisions r
+                     LEFT JOIN "user" submitter ON submitter.id = r.submitted_by
+                     LEFT JOIN submission_revision_requests srr ON srr.id = r.source_request_id
+                     LEFT JOIN LATERAL (
+                         SELECT
+                             COALESCE(
+                                 JSONB_AGG(
+                                     JSONB_BUILD_OBJECT(
+                                         'id', sg.id,
+                                         'field_key', sg.field_key,
+                                         'field_label', sg.field_label,
+                                         'field_type', sg.field_type,
+                                         'answer', sg.answer,
+                                         'expected_answer', sg.expected_answer,
+                                         'score', sg.score,
+                                         'max_score', sg.max_score,
+                                         'grading_type', sg.grading_type,
+                                         'matched', sg.matched,
+                                         'comment', sg.comment,
+                                         'graded_at', sg.graded_at,
+                                         'graded_by_name', grader.name
+                                     ) ORDER BY sg.created_at ASC
+                                 ) FILTER (WHERE sg.id IS NOT NULL),
+                                 '[]'::JSONB
+                             ) AS grades,
+                             COUNT(sg.id)::int AS grade_count,
+                             COUNT(sg.id) FILTER (WHERE sg.grading_type = 'manual')::int AS manual_count,
+                             COUNT(sg.id) FILTER (
+                                 WHERE sg.grading_type = 'manual'
+                                   AND COALESCE((sg.rule_snapshot->>'requiredManual')::boolean, false) = true
+                                   AND sg.score IS NULL
+                             )::int AS required_manual_missing_count,
+                             COALESCE(SUM(COALESCE(sg.score, 0)), 0)::numeric AS total_score,
+                             COALESCE(SUM(sg.max_score), 0)::numeric AS max_score
+                         FROM submission_grades sg
+                         LEFT JOIN "user" grader ON grader.id = sg.graded_by
+                         WHERE sg.revision_id = r.id
+                     ) grade_summary ON TRUE
+                     WHERE r.submission_id = $1
+                     ORDER BY r.revision_number DESC`,
+                    [submissionId],
+                ),
+                pool.query(
+                    `SELECT srr.*, requester.name AS requested_by_name
+                     FROM submission_revision_requests srr
+                     LEFT JOIN "user" requester ON requester.id = srr.requested_by
+                     WHERE srr.id = $1`,
+                    [submission.active_revision_request_id],
+                ),
+                pool.query(
+                    `SELECT sn.*
+                     FROM submission_notifications sn
+                     WHERE sn.submission_id = $1
+                     ORDER BY sn.created_at DESC`,
+                    [submissionId],
+                ),
             ]);
 
             return {
                 submission,
                 grades: gradesResult.rows,
                 events: eventsResult.rows,
+                revisions: revisionsResult.rows,
+                activeRequest: activeRequestResult.rows[0] ?? null,
+                notifications: notificationsResult.rows,
             };
         } catch (error) {
             if (isUndefinedTableError(error)) {

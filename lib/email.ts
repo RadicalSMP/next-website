@@ -12,6 +12,12 @@ function getResend() {
 {/* 现在绑上了 hami.su 的域名, 在将来某个日子买了 radicalsmp.org 的域名后, 将它绑上resend, 然后改掉这个发件邮箱w */}
 const FROM = "BotamiDragen <botamidragen@hami.su>";
 
+export type FormEmailContent = {
+    subject: string;
+    html: string;
+    text: string;
+};
+
 function escapeHtml(value: string) {
     return value
         .replace(/&/g, "&amp;")
@@ -19,6 +25,74 @@ function escapeHtml(value: string) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+export function buildRevisionRequestedEmail(params: {
+    formTitle: string;
+    reason: string;
+    editableFieldLabels: string[];
+    expiresAt: Date | null;
+    accessUrl: string;
+}): FormEmailContent {
+    const safeTitle = escapeHtml(params.formTitle);
+    const safeReason = escapeHtml(params.reason);
+    const safeAccessUrl = escapeHtml(params.accessUrl);
+    const fieldSummary = params.editableFieldLabels.length > 0
+        ? params.editableFieldLabels.join("、")
+        : "全部可填写字段";
+    const safeFieldSummary = escapeHtml(fieldSummary);
+    const expiresText = params.expiresAt
+        ? params.expiresAt.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })
+        : "未设置截止时间";
+    const safeExpiresText = escapeHtml(expiresText);
+
+    return {
+        subject: `请补充表单内容 - ${params.formTitle.replace(/[\r\n]+/g, " ")}`,
+        html: `
+            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #18181b;">
+                <h2 style="margin-bottom: 16px;">${safeTitle}</h2>
+                <p>管理员需要你补充或修正本次提交。</p>
+                <div style="background: #f4f4f5; padding: 12px 16px; border-radius: 6px; margin: 16px 0;">
+                    <p style="margin: 0 0 6px;"><strong>原因：</strong>${safeReason}</p>
+                    <p style="margin: 0 0 6px;"><strong>可修改内容：</strong>${safeFieldSummary}</p>
+                    <p style="margin: 0;"><strong>截止时间：</strong>${safeExpiresText}</p>
+                </div>
+                <a href="${safeAccessUrl}" style="display: inline-block; padding: 12px 20px; background: #171717; color: #fff; text-decoration: none; border-radius: 6px; margin: 8px 0 16px;">
+                    查看并补交
+                </a>
+                <p style="color: #666; font-size: 14px;">该链接仅用于访问你的提交，请勿转发给他人。</p>
+            </div>
+        `,
+        text: [
+            params.formTitle,
+            "管理员需要你补充或修正本次提交。",
+            `原因：${params.reason}`,
+            `可修改内容：${fieldSummary}`,
+            `截止时间：${expiresText}`,
+            `查看并补交：${params.accessUrl}`,
+            "该链接仅用于访问你的提交，请勿转发给他人。",
+        ].join("\n"),
+    };
+}
+
+export async function sendFormEmail(params: {
+    to: string;
+    content: FormEmailContent;
+}) {
+    const result = await getResend().emails.send({
+        from: FROM,
+        to: params.to,
+        subject: params.content.subject,
+        html: params.content.html,
+        text: params.content.text,
+    });
+    if (result.error) {
+        throw new Error(result.error.message || "邮件提供商返回失败");
+    }
+    if (!result.data?.id) {
+        throw new Error("邮件提供商未返回消息 ID");
+    }
+    return { providerMessageId: result.data.id };
 }
 
 export async function sendPasswordResetEmail(params: {
