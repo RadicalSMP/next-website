@@ -1,0 +1,11 @@
+{
+  "runId": "20260715T220508-form-resubmission-notifications-plan",
+  "phase": "requirement-and-plan",
+  "status": "completed",
+  "requirementDocument": "docs/requirements/2026-07-15-form-resubmission-and-result-notifications.md",
+  "executionPlan": "docs/plans/2026-07-15-form-resubmission-and-result-notifications-execution-plan.md",
+  "internalGrade": "XL",
+  "waves": 8,
+  "implementationStarted": false,
+  "approvalRequiredBeforeExecution": true
+}

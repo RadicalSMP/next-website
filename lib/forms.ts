@@ -55,6 +55,9 @@ export type ResultNotificationTemplate =
     | "score_result"
     | "generic_result"
     | null;
+export type SubmissionNotificationTemplate =
+    | Exclude<ResultNotificationTemplate, null>
+    | "revision_requested";
 export type SubmissionGradingStatus =
     | "not_required"
     | "auto_graded"
@@ -66,6 +69,16 @@ export type SubmissionProcessingStatus =
     | "approved"
     | "rejected"
     | "needs_changes";
+export type SubmissionRevisionStatus = "none" | "requested" | "resubmitted";
+export type RevisionRequestStatus = "open" | "fulfilled" | "cancelled" | "expired";
+export type RevisionEditScope = "all" | "selected";
+export type SubmissionAccessScope = "view" | "revise";
+export type SubmissionNotificationStatus = "pending" | "sending" | "sent" | "failed";
+export type SubmissionNotificationEvent =
+    | "revision_requested"
+    | "grading_completed"
+    | "processing_changed";
+export type SubmissionRevisionSource = "initial" | "account" | "token";
 
 export interface ResultCollectionConfig {
     enabled: boolean;
@@ -104,6 +117,16 @@ export interface ResultNotificationConfig {
         fieldKey: string | null;
     };
     autoSend: boolean;
+    events: {
+        revisionRequested: boolean;
+        gradingCompleted: boolean;
+        processingChanged: boolean;
+    };
+    content: {
+        includeQuestionScores: boolean;
+        includeComments: boolean;
+        includeCorrectAnswers: boolean;
+    };
 }
 
 export interface ResultFieldMappings {
@@ -162,6 +185,57 @@ export interface SubmissionGradeResult {
     grades: SubmissionGradeDraft[];
 }
 
+export interface FormSubmissionRevision {
+    id: string;
+    submissionId: string;
+    revisionNumber: number;
+    sourceRequestId: string | null;
+    data: Record<string, unknown>;
+    fieldSnapshot: FormField[];
+    submittedBy: string | null;
+    submittedVia: SubmissionRevisionSource;
+    ipAddress: string | null;
+    userAgent: string | null;
+    fingerprint: string | null;
+    duration: number | null;
+    createdAt: string;
+}
+
+export interface SubmissionRevisionRequest {
+    id: string;
+    submissionId: string;
+    baseRevisionId: string;
+    editScope: RevisionEditScope;
+    editableFieldKeys: string[];
+    reason: string;
+    status: RevisionRequestStatus;
+    expiresAt: string | null;
+    requestedBy: string;
+    fulfilledRevisionId: string | null;
+    createdAt: string;
+    fulfilledAt: string | null;
+    cancelledAt: string | null;
+}
+
+export interface SubmissionNotification {
+    id: string;
+    submissionId: string;
+    revisionId: string | null;
+    revisionRequestId: string | null;
+    eventType: SubmissionNotificationEvent;
+    template: SubmissionNotificationTemplate;
+    recipient: string;
+    payload: Record<string, unknown>;
+    status: SubmissionNotificationStatus;
+    attempts: number;
+    idempotencyKey: string;
+    providerMessageId: string | null;
+    lastError: string | null;
+    sentAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export const UNTITLED_FORM_TITLE = "未命名表单";
 
 export const FORM_FIELD_TYPES: FormFieldType[] = [
@@ -208,6 +282,16 @@ export const DEFAULT_RESULT_CONFIG: FormResultConfig = {
             fieldKey: null,
         },
         autoSend: false,
+        events: {
+            revisionRequested: true,
+            gradingCompleted: true,
+            processingChanged: true,
+        },
+        content: {
+            includeQuestionScores: true,
+            includeComments: true,
+            includeCorrectAnswers: false,
+        },
     },
     fieldMappings: {
         email: null,
@@ -449,6 +533,8 @@ export function cloneResultConfig(config: FormResultConfig): FormResultConfig {
         notifications: {
             ...config.notifications,
             recipient: { ...config.notifications.recipient },
+            events: { ...config.notifications.events },
+            content: { ...config.notifications.content },
         },
         fieldMappings: { ...config.fieldMappings },
     };
@@ -542,6 +628,8 @@ export function normalizeResultConfig(raw: unknown, fields: FormField[]): FormRe
     const processing = isRecord(source.processing) ? source.processing : {};
     const notifications = isRecord(source.notifications) ? source.notifications : {};
     const recipient = isRecord(notifications.recipient) ? notifications.recipient : {};
+    const notificationEvents = isRecord(notifications.events) ? notifications.events : {};
+    const notificationContent = isRecord(notifications.content) ? notifications.content : {};
     const mappings = isRecord(source.fieldMappings) ? source.fieldMappings : {};
 
     const rules = Array.isArray(grading.rules)
@@ -597,6 +685,34 @@ export function normalizeResultConfig(raw: unknown, fields: FormField[]): FormRe
                 fieldKey: recipientSource === "mapped_field" ? recipientFieldKey : null,
             },
             autoSend: coerceBoolean(notifications.autoSend, false),
+            events: {
+                revisionRequested: coerceBoolean(
+                    notificationEvents.revisionRequested,
+                    false,
+                ),
+                gradingCompleted: coerceBoolean(
+                    notificationEvents.gradingCompleted,
+                    false,
+                ),
+                processingChanged: coerceBoolean(
+                    notificationEvents.processingChanged,
+                    false,
+                ),
+            },
+            content: {
+                includeQuestionScores: coerceBoolean(
+                    notificationContent.includeQuestionScores,
+                    DEFAULT_RESULT_CONFIG.notifications.content.includeQuestionScores,
+                ),
+                includeComments: coerceBoolean(
+                    notificationContent.includeComments,
+                    DEFAULT_RESULT_CONFIG.notifications.content.includeComments,
+                ),
+                includeCorrectAnswers: coerceBoolean(
+                    notificationContent.includeCorrectAnswers,
+                    DEFAULT_RESULT_CONFIG.notifications.content.includeCorrectAnswers,
+                ),
+            },
         },
         fieldMappings: {
             email: normalizeFieldKeyReference(mappings.email, fields),
@@ -638,6 +754,14 @@ export function validateResultConfigForPublish(config: FormResultConfig, fields:
 
     if (config.notifications.enabled && config.notifications.recipient.source === "mapped_field" && !config.notifications.recipient.fieldKey) {
         return { ok: false as const, error: "启用通知时需要选择收件人邮箱字段，或改用账号邮箱" };
+    }
+
+    if (
+        config.notifications.enabled &&
+        config.notifications.autoSend &&
+        !Object.values(config.notifications.events).some(Boolean)
+    ) {
+        return { ok: false as const, error: "启用自动通知时至少需要选择一个触发事件" };
     }
 
     return { ok: true as const };
@@ -803,13 +927,23 @@ export function createJoinApplicationResultPreset(fields: FormField[]): FormResu
             defaultStatus: "pending",
         },
         notifications: {
-            enabled: Boolean(email),
+            enabled: true,
             template: "join_application_result",
             recipient: {
                 source: email ? "mapped_field" : "account_email",
                 fieldKey: email,
             },
-            autoSend: false,
+            autoSend: true,
+            events: {
+                revisionRequested: true,
+                gradingCompleted: false,
+                processingChanged: true,
+            },
+            content: {
+                includeQuestionScores: false,
+                includeComments: true,
+                includeCorrectAnswers: false,
+            },
         },
         fieldMappings: {
             email,

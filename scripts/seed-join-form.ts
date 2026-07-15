@@ -23,13 +23,23 @@ const resultConfig = {
         defaultStatus: "pending",
     },
     notifications: {
-        enabled: false,
+        enabled: true,
         template: "join_application_result",
         recipient: {
             source: "account_email",
             fieldKey: null,
         },
-        autoSend: false,
+        autoSend: true,
+        events: {
+            revisionRequested: true,
+            gradingCompleted: false,
+            processingChanged: true,
+        },
+        content: {
+            includeQuestionScores: false,
+            includeComments: true,
+            includeCorrectAnswers: false,
+        },
     },
     fieldMappings: {
         email: null,

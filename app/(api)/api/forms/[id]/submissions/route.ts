@@ -98,6 +98,8 @@ export async function POST(
         reqHeaders.get("x-real-ip") ||
         null;
     const userAgent = reqHeaders.get("user-agent") || null;
+    const fingerprint = typeof body.fingerprint === "string" ? body.fingerprint : null;
+    const duration = typeof body.duration === "number" ? Math.round(body.duration) : null;
 
     const client = await pool.connect();
     let result: QueryResult<{ id: string }>;
@@ -124,21 +126,48 @@ export async function POST(
                 gradeResult.processingStatus,
                 ipAddress,
                 userAgent,
-                typeof body.fingerprint === "string" ? body.fingerprint : null,
-                typeof body.duration === "number" ? Math.round(body.duration) : null,
+                fingerprint,
+                duration,
             ],
         );
 
         const submissionId = result.rows[0].id as string;
+        const revisionResult = await client.query<{ id: string }>(
+            `INSERT INTO form_submission_revisions
+                (submission_id, revision_number, data, field_snapshot, submitted_by, submitted_via,
+                 ip_address, user_agent, fingerprint, duration)
+             VALUES ($1, 1, $2, $3, $4, 'initial', $5, $6, $7, $8)
+             RETURNING id`,
+            [
+                submissionId,
+                JSON.stringify(validation.value),
+                JSON.stringify(fields),
+                session?.user?.id || null,
+                ipAddress,
+                userAgent,
+                fingerprint,
+                duration,
+            ],
+        );
+        const revisionId = revisionResult.rows[0].id;
+
+        await client.query(
+            `UPDATE form_submissions
+             SET current_revision_id = $1,
+                 revision_count = 1
+             WHERE id = $2`,
+            [revisionId, submissionId],
+        );
 
         for (const grade of gradeResult.grades) {
             await client.query(
                 `INSERT INTO submission_grades
-                    (submission_id, field_key, field_label, field_type, answer, expected_answer,
+                    (submission_id, revision_id, field_key, field_label, field_type, answer, expected_answer,
                      score, max_score, grading_type, matched, comment, rule_snapshot, graded_by, graded_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
                 [
                     submissionId,
+                    revisionId,
                     grade.fieldKey,
                     grade.fieldLabel,
                     grade.fieldType,
@@ -158,11 +187,13 @@ export async function POST(
 
         await client.query(
             `INSERT INTO submission_events
-                (submission_id, form_id, event_type, action, to_status, score, max_score, actor_id, metadata)
-             VALUES ($1, $2, 'submission', 'created', $3, $4, $5, $6, $7)`,
+                (submission_id, form_id, event_type, action, revision_id, to_status,
+                 score, max_score, actor_id, metadata)
+             VALUES ($1, $2, 'submission', 'created', $3, $4, $5, $6, $7, $8)`,
             [
                 submissionId,
                 id,
+                revisionId,
                 gradeResult.processingStatus,
                 gradeResult.totalScore,
                 gradeResult.maxScore,

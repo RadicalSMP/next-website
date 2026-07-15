@@ -9,6 +9,7 @@
     "lint": "eslint",
     "seed": "bun run scripts/seed.ts",
     "seed:join-form": "node --env-file=.env --experimental-strip-types scripts/seed-join-form.ts",
+    "seed:test-form-resubmission": "node --env-file=.env --experimental-strip-types scripts/seed-form-resubmission-test.ts",
     "migrate:forms": "node --env-file=.env --experimental-strip-types scripts/migrate-forms.ts",
     "migrate:blog": "bun run scripts/migrate-blog.ts"
   },
