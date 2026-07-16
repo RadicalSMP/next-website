@@ -294,8 +294,8 @@ async function verifyAccessDecisions(
         assert(!tamperedAccess.canView && tamperedAccess.reason === "token_invalid", "篡改令牌未被拒绝");
 
         await client.query(
-            `UPDATE submission_access_tokens SET expires_at = NOW() - INTERVAL '1 second' WHERE id = $1`,
-            [tokenId],
+            `UPDATE submission_access_tokens SET expires_at = $1 WHERE id = $2`,
+            [new Date(Date.now() - 60_000), tokenId],
         );
         const expiredAccess = await authorizeSubmissionAccess({
             submissionId: fixtures.anonymous.submission_id,
@@ -305,9 +305,9 @@ async function verifyAccessDecisions(
 
         await client.query(
             `UPDATE submission_access_tokens
-             SET expires_at = NOW() + INTERVAL '1 minute', revoked_at = NOW()
-             WHERE id = $1`,
-            [tokenId],
+             SET expires_at = $1, revoked_at = $2
+             WHERE id = $3`,
+            [new Date(Date.now() + 60_000), new Date(), tokenId],
         );
         const revokedAccess = await authorizeSubmissionAccess({
             submissionId: fixtures.anonymous.submission_id,

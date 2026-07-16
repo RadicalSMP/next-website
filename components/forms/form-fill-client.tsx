@@ -4,16 +4,11 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
+import { FormResponseFields } from "@/components/forms/form-response-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { buildSubmissionDefaults, normalizeFormFields } from "@/lib/forms";
-
-type FormField = ReturnType<typeof normalizeFormFields>[number];
+import { buildSubmissionDefaults, type FormField } from "@/lib/forms";
 
 type FormData = {
     id: string;
@@ -50,145 +45,6 @@ function generateFingerprint(): string {
         hash |= 0;
     }
     return Math.abs(hash).toString(36);
-}
-
-function renderPreviewValue(
-    field: FormField,
-    value: unknown,
-    onChange: (next: unknown) => void,
-    inputId: string,
-) {
-    switch (field.type) {
-        case "textarea":
-            return (
-                <Textarea
-                    id={inputId}
-                    name={field.key}
-                    value={String(value ?? "")}
-                    placeholder={field.placeholder || ""}
-                    onChange={(event) => onChange(event.target.value)}
-                    onInput={(event) => onChange(event.currentTarget.value)}
-                    rows={4}
-                />
-            );
-        case "number":
-            return (
-                <Input
-                    id={inputId}
-                    name={field.key}
-                    type="number"
-                    value={String(value ?? "")}
-                    placeholder={field.placeholder || ""}
-                    onChange={(event) => onChange(event.target.value)}
-                    onInput={(event) => onChange(event.currentTarget.value)}
-                />
-            );
-        case "date":
-            return (
-                <Input
-                    id={inputId}
-                    name={field.key}
-                    type="date"
-                    value={String(value ?? "")}
-                    onChange={(event) => onChange(event.target.value)}
-                    onInput={(event) => onChange(event.currentTarget.value)}
-                />
-            );
-        case "checkbox": {
-            const selectedValues = Array.isArray(value) ? value.map(String) : [];
-            return (
-                <div className="grid gap-2">
-                    {(field.options ?? []).map((option, optionIndex) => {
-                        const optionId = `${inputId}-option-${optionIndex}`;
-                        const checked = selectedValues.includes(option.value);
-                        return (
-                            <div key={option.value} className="flex items-center gap-2 text-sm">
-                                <Checkbox
-                                    id={optionId}
-                                    name={field.key}
-                                    checked={checked}
-                                    onCheckedChange={(nextChecked) => {
-                                        onChange(
-                                            nextChecked
-                                                ? [...selectedValues, option.value]
-                                                : selectedValues.filter((item) => item !== option.value),
-                                        );
-                                    }}
-                                />
-                                <Label htmlFor={optionId}>{option.label}</Label>
-                            </div>
-                        );
-                    })}
-                </div>
-            );
-        }
-        case "toggle":
-            return (
-                <div className="flex items-center gap-2">
-                    <Checkbox
-                        id={inputId}
-                        name={field.key}
-                        checked={Boolean(value)}
-                        onCheckedChange={(checked) => onChange(Boolean(checked))}
-                    />
-                    <Label htmlFor={inputId} className="text-sm font-normal text-muted-foreground">
-                        {field.helpText || field.label || "启用"}
-                    </Label>
-                </div>
-            );
-        case "radio":
-            return (
-                <div className="grid gap-2">
-                    {(field.options ?? []).map((option, optionIndex) => {
-                        const optionId = `${inputId}-option-${optionIndex}`;
-                        return (
-                            <div key={option.value} className="flex items-center gap-2 text-sm">
-                                <input
-                                    id={optionId}
-                                    name={field.key}
-                                    type="radio"
-                                    checked={String(value ?? "") === option.value}
-                                    onChange={() => onChange(option.value)}
-                                />
-                                <Label htmlFor={optionId} className="font-normal">
-                                    {option.label}
-                                </Label>
-                            </div>
-                        );
-                    })}
-                </div>
-            );
-        case "select":
-            return (
-                <select
-                    id={inputId}
-                    name={field.key}
-                    className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={typeof value === "string" ? value : ""}
-                    onChange={(event) => onChange(event.target.value)}
-                >
-                    <option value="" disabled>
-                        {field.placeholder || "请选择"}
-                    </option>
-                    {(field.options ?? []).map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-            );
-        default:
-            return (
-                <Input
-                    id={inputId}
-                    name={field.key}
-                    value={String(value ?? "")}
-                    placeholder={field.placeholder || ""}
-                    onChange={(event) => onChange(event.target.value)}
-                    onInput={(event) => onChange(event.currentTarget.value)}
-                />
-            );
-    }
 }
 
 type FormFillClientProps = {
@@ -281,8 +137,6 @@ export function FormFillClient({
 
     if (!initialForm) return null;
 
-    const visibleFields = initialForm.fields.filter((field) => field.enabled);
-
     return (
         <div className="container mx-auto max-w-2xl px-4 py-12">
             <div className="mb-8 rounded-lg border bg-muted/20 p-5">
@@ -295,27 +149,12 @@ export function FormFillClient({
             </div>
             <Separator className="mb-8" />
             <div className="space-y-6">
-                {visibleFields.length === 0 ? (
-                    <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-                        当前没有启用的题目。
-                    </div>
-                ) : (
-                    visibleFields.map((field, index) => (
-                        <div key={field.key || index} className="grid gap-2">
-                            <Label htmlFor={`form-field-${field.key || index}`}>
-                                {field.label || `未命名题目 ${index + 1}`}
-                                {field.required && <span className="ml-1 text-destructive">*</span>}
-                            </Label>
-                            {renderPreviewValue(
-                                field,
-                                values[field.key],
-                                (next) => updateValue(field.key, next),
-                                `form-field-${field.key || index}`,
-                            )}
-                            {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
-                        </div>
-                    ))
-                )}
+                <FormResponseFields
+                    fields={initialForm.fields}
+                    values={values}
+                    onValueChange={updateValue}
+                    idPrefix="form-field"
+                />
                 <div className="pt-2">
                     <Button
                         className="w-full"

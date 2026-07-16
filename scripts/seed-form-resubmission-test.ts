@@ -208,7 +208,12 @@ async function seed() {
     try {
         await client.query("BEGIN");
         const adminResult = await client.query<{ id: string; email: string }>(
-            `SELECT id, email FROM "user" WHERE role = 'admin' LIMIT 1`,
+            `SELECT id, email
+             FROM "user"
+             WHERE role = 'admin'
+               AND ($1::TEXT IS NULL OR id = $1)
+             LIMIT 1`,
+            [process.env.ADMIN_USER_ID || null],
         );
         if (adminResult.rows.length === 0) {
             throw new Error("未找到管理员账号，无法创建登录用户回归夹具");

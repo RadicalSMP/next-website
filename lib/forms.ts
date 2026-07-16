@@ -237,6 +237,7 @@ export interface SubmissionNotification {
 }
 
 export const UNTITLED_FORM_TITLE = "未命名表单";
+const RESERVED_FORM_SLUGS = new Set(["my-submissions", "submissions"]);
 
 export const FORM_FIELD_TYPES: FormFieldType[] = [
     "text",
@@ -1069,6 +1070,9 @@ export function validateFormBasePayload(raw: unknown) {
     if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(slug)) {
         return { ok: false as const, error: "slug 只能包含小写字母、数字和连字符，且不能以连字符开头或结尾" };
     }
+    if (RESERVED_FORM_SLUGS.has(slug)) {
+        return { ok: false as const, error: "该 slug 为系统保留路径，请使用其他标识" };
+    }
     if (!["public", "authenticated", "members"].includes(visibility)) {
         return { ok: false as const, error: "无效的可见性设置" };
     }
@@ -1108,6 +1112,9 @@ export function normalizeDraftFormBasePayload(raw: unknown) {
 
     if (!["public", "authenticated", "members"].includes(visibility)) {
         return { ok: false as const, error: "无效的可见性设置" };
+    }
+    if (RESERVED_FORM_SLUGS.has(slug)) {
+        return { ok: false as const, error: "该 slug 为系统保留路径，请使用其他标识" };
     }
     if (!["draft", "published", "archived"].includes(status)) {
         return { ok: false as const, error: "无效的状态设置" };

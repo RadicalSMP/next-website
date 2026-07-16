@@ -1,7 +1,8 @@
 import { getActiveForms } from "@/lib/cache";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Lock, Users } from "lucide-react";
+import { ClipboardList, FileText, Lock, Users } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export const metadata = {
     title: "表单 - RadicalSMP",
@@ -35,9 +36,17 @@ export default async function FormsListPage() {
 
     return (
         <div className="container mx-auto max-w-3xl px-4 py-12">
-            <div className="mb-10">
-                <h1 className="text-3xl font-bold tracking-tight">表单</h1>
-                <p className="mt-2 text-muted-foreground">查看和填写已发布表单</p>
+            <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">表单</h1>
+                    <p className="mt-2 text-muted-foreground">查看和填写已发布表单</p>
+                </div>
+                <Button variant="outline" asChild className="w-full sm:w-auto">
+                    <Link href="/forms/my-submissions">
+                        <ClipboardList />
+                        我的提交
+                    </Link>
+                </Button>
             </div>
 
             {forms.length === 0 ? (
