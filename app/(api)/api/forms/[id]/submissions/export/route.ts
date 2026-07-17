@@ -33,9 +33,8 @@ export async function GET(
 
     const { id } = await params;
     const formResult = await pool.query(
-        `SELECT f.title, f.slug, fv.fields
+        `SELECT f.title, f.slug
          FROM forms f
-         LEFT JOIN form_versions fv ON fv.id = f.current_version_id
          WHERE f.id = $1`,
         [id],
     );
@@ -43,15 +42,25 @@ export async function GET(
         return NextResponse.json({ error: "表单不存在" }, { status: 404 });
     }
 
-    const fields = normalizeFormFields(formResult.rows[0].fields);
     const submissions = await pool.query(
         `SELECT fs.*, u.name AS user_name
          FROM form_submissions fs
          LEFT JOIN "user" u ON fs.user_id = u.id
          WHERE fs.form_id = $1
-         ORDER BY fs.created_at DESC`,
+         ORDER BY fs.created_at DESC, fs.id DESC`,
         [id],
     );
+
+    const fieldLabels = new Map<string, string>();
+    for (const submission of submissions.rows) {
+        for (const field of normalizeFormFields(submission.field_snapshot)) {
+            if (!fieldLabels.has(field.key)) {
+                fieldLabels.set(field.key, field.label.trim() || field.key);
+            }
+        }
+    }
+    const fields = Array.from(fieldLabels, ([key, label]) => ({ key, label }))
+        .sort((left, right) => left.key.localeCompare(right.key));
 
     const headersRow = [
         "提交 ID",
@@ -64,6 +73,9 @@ export async function GET(
         "处理状态",
         "处理备注",
         "处理时间",
+        "补交状态",
+        "版本数",
+        "最近补交时间",
         "提交时间",
         "填写用时",
         ...fields.map((field) => field.label),
@@ -82,6 +94,11 @@ export async function GET(
             submission.processing_status || "not_required",
             submission.processing_note || "",
             submission.processed_at ? new Date(submission.processed_at).toLocaleString("zh-CN") : "",
+            submission.revision_status || "none",
+            submission.revision_count ?? 1,
+            submission.last_resubmitted_at
+                ? new Date(submission.last_resubmitted_at).toLocaleString("zh-CN")
+                : "",
             new Date(submission.created_at).toLocaleString("zh-CN"),
             submission.duration ?? "",
             ...fields.map((field) => formatValue(data[field.key])),

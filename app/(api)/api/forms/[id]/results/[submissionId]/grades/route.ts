@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { invalidateSubmissionCache } from "@/lib/cache";
+import { isSameOriginMutation } from "@/lib/form-submission-access";
 
 type GradeInput = {
     fieldKey?: unknown;
@@ -37,6 +38,9 @@ export async function POST(
     if (!session) {
         return NextResponse.json({ error: "未授权" }, { status: 403 });
     }
+    if (!isSameOriginMutation(request)) {
+        return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
+    }
 
     const { id, submissionId } = await params;
     const body = await request.json().catch(() => null) as unknown;
@@ -45,9 +49,13 @@ export async function POST(
     }
 
     const payload = body as Record<string, unknown>;
+    const revisionId = typeof payload.revisionId === "string" ? payload.revisionId.trim() : "";
     const grades = Array.isArray(payload.grades) ? payload.grades as GradeInput[] : [];
     const overallComment = typeof payload.overallComment === "string" ? payload.overallComment.trim() : null;
 
+    if (!revisionId) {
+        return NextResponse.json({ error: "缺少当前修订编号" }, { status: 400 });
+    }
     if (grades.length === 0) {
         return NextResponse.json({ error: "没有可保存的批改内容" }, { status: 400 });
     }
@@ -57,7 +65,7 @@ export async function POST(
         await client.query("BEGIN");
 
         const submissionResult = await client.query(
-            `SELECT id, form_id, grading_status, total_score, max_score
+            `SELECT id, form_id, current_revision_id, grading_status, total_score, max_score
              FROM form_submissions
              WHERE id = $1 AND form_id = $2
              FOR UPDATE`,
@@ -68,13 +76,21 @@ export async function POST(
             await client.query("ROLLBACK");
             return NextResponse.json({ error: "结果不存在" }, { status: 404 });
         }
+        if (!submission.current_revision_id || submission.current_revision_id !== revisionId) {
+            await client.query("ROLLBACK");
+            return NextResponse.json({
+                error: "结果已产生新修订，请刷新后重新批改",
+                code: "revision_conflict",
+                currentRevisionId: submission.current_revision_id ?? null,
+            }, { status: 409 });
+        }
 
         const gradeRowsResult = await client.query(
             `SELECT field_key, max_score, grading_type
              FROM submission_grades
-             WHERE submission_id = $1
+             WHERE submission_id = $1 AND revision_id = $2
              FOR UPDATE`,
-            [submissionId],
+            [submissionId, revisionId],
         );
         const gradeRows = new Map<string, { max_score: string | number; grading_type: string }>(
             gradeRowsResult.rows.map((row) => [row.field_key, row]),
@@ -99,22 +115,34 @@ export async function POST(
                 return NextResponse.json({ error: `字段「${fieldKey}」分数必须在 0 到 ${maxScore} 之间` }, { status: 400 });
             }
 
-            await client.query(
+            const updateResult = await client.query(
                 `UPDATE submission_grades
                  SET score = $1,
                      comment = $2,
                      graded_by = $3,
                      graded_at = NOW(),
                      updated_at = NOW()
-                 WHERE submission_id = $4 AND field_key = $5 AND grading_type = 'manual'`,
+                 WHERE submission_id = $4
+                   AND revision_id = $5
+                   AND field_key = $6
+                   AND grading_type = 'manual'`,
                 [
                     score,
                     typeof grade.comment === "string" ? grade.comment.trim() || null : null,
                     session.user.id,
                     submissionId,
+                    revisionId,
                     fieldKey,
                 ],
             );
+            if (updateResult.rowCount !== 1) {
+                await client.query("ROLLBACK");
+                return NextResponse.json({
+                    error: "当前修订的批改记录已变化，请刷新后重试",
+                    code: "revision_conflict",
+                    currentRevisionId: revisionId,
+                }, { status: 409 });
+            }
         }
 
         const aggregateResult = await client.query(
@@ -129,8 +157,8 @@ export async function POST(
                 COALESCE(SUM(COALESCE(score, 0)), 0)::numeric AS total_score,
                 COALESCE(SUM(max_score), 0)::numeric AS max_score
              FROM submission_grades
-             WHERE submission_id = $1`,
-            [submissionId],
+             WHERE submission_id = $1 AND revision_id = $2`,
+            [submissionId, revisionId],
         );
         const aggregate = aggregateResult.rows[0];
         const nextGradingStatus = aggregate.grade_count === 0
@@ -141,22 +169,33 @@ export async function POST(
                     ? "graded"
                     : "auto_graded";
 
-        await client.query(
+        const projectionUpdate = await client.query(
             `UPDATE form_submissions
              SET grading_status = $1,
                  total_score = $2,
                  max_score = $3
-             WHERE id = $4`,
-            [nextGradingStatus, aggregate.total_score, aggregate.max_score, submissionId],
+             WHERE id = $4 AND current_revision_id = $5`,
+            [nextGradingStatus, aggregate.total_score, aggregate.max_score, submissionId, revisionId],
         );
+        if (projectionUpdate.rowCount !== 1) {
+            await client.query("ROLLBACK");
+            return NextResponse.json({
+                error: "结果已产生新修订，请刷新后重新批改",
+                code: "revision_conflict",
+                currentRevisionId: revisionId,
+            }, { status: 409 });
+        }
 
         await client.query(
             `INSERT INTO submission_events
-                (submission_id, form_id, event_type, action, from_status, to_status, note, score, max_score, actor_id, metadata)
-             VALUES ($1, $2, 'grading', 'manual_grade_saved', $3, $4, $5, $6, $7, $8, $9)`,
+                (submission_id, form_id, event_type, action, revision_id,
+                 from_status, to_status, note, score, max_score, actor_id, metadata)
+             VALUES ($1, $2, 'grading', 'manual_grade_saved', $3,
+                     $4, $5, $6, $7, $8, $9, $10)`,
             [
                 submissionId,
                 id,
+                revisionId,
                 submission.grading_status,
                 nextGradingStatus,
                 overallComment,
@@ -171,6 +210,7 @@ export async function POST(
         invalidateSubmissionCache();
 
         return NextResponse.json({
+            revisionId,
             gradingStatus: nextGradingStatus,
             totalScore: Number(aggregate.total_score),
             maxScore: Number(aggregate.max_score),

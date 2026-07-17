@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
         searchParams.get("processingStatus") || "all",
         searchParams.get("scoreFilter") || "all",
         searchParams.get("collectionLabel") || "all",
+        searchParams.get("revisionStatus") || "all",
+        searchParams.get("revisionCountFilter") || "all",
     );
 
     return NextResponse.json(data);

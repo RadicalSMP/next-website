@@ -37,6 +37,8 @@ export default async function FormResultsPage({
         processingStatus: readParam(params.processingStatus, "all"),
         scoreFilter: readParam(params.scoreFilter, "all"),
         collectionLabel: readParam(params.collectionLabel, "all"),
+        revisionStatus: readParam(params.revisionStatus, "all"),
+        revisionCountFilter: readParam(params.revisionCountFilter, "all"),
     };
 
     const data = await getResultList(
@@ -49,6 +51,8 @@ export default async function FormResultsPage({
         filters.processingStatus,
         filters.scoreFilter,
         filters.collectionLabel,
+        filters.revisionStatus,
+        filters.revisionCountFilter,
     );
 
     return (

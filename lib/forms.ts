@@ -1237,7 +1237,10 @@ export function validateSubmissionValues(fields: FormField[], data: Record<strin
 }
 
 export function csvEscape(value: unknown) {
-    const text = value === null || value === undefined ? "" : String(value);
+    const rawText = value === null || value === undefined ? "" : String(value);
+    const text = typeof value === "string" && /^[=+\-@\t\r]/.test(rawText)
+        ? `'${rawText}`
+        : rawText;
     if (/[,"\n]/.test(text)) {
         return `"${text.replace(/"/g, '""')}"`;
     }

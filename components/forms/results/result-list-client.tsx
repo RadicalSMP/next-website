@@ -45,6 +45,9 @@ type ResultRow = {
     processing_status: string;
     processed_at: string | null;
     processed_by_name: string | null;
+    revision_status: string;
+    revision_count: number | string;
+    last_resubmitted_at: string | null;
     created_at: string;
     duration: number | null;
     version: number | string | null;
@@ -90,6 +93,8 @@ type ResultFilters = {
     processingStatus: string;
     scoreFilter: string;
     collectionLabel: string;
+    revisionStatus: string;
+    revisionCountFilter: string;
 };
 
 type ResultListClientProps = {
@@ -150,6 +155,19 @@ const scoreFilterLabels: Record<string, string> = {
     unscored: "无分数",
 };
 
+const revisionStatusLabels: Record<string, string> = {
+    all: "全部补交状态",
+    none: "未发起补交",
+    requested: "待补交",
+    resubmitted: "已补交",
+};
+
+const revisionCountFilterLabels: Record<string, string> = {
+    all: "全部版本数",
+    initial: "仅初始版本",
+    multiple: "多个版本",
+};
+
 function toNumber(value: string | number | null | undefined) {
     if (value === null || value === undefined || value === "") return null;
     const parsed = Number(value);
@@ -180,8 +198,18 @@ function normalizePayload(data: Partial<ResultListPayload> | null | undefined): 
 
 function getBadgeVariant(value: string) {
     if (value === "rejected") return "destructive" as const;
-    if (value === "manual_required" || value === "pending" || value === "needs_changes") return "secondary" as const;
-    if (value === "approved" || value === "graded" || value === "auto_graded") return "default" as const;
+    if (
+        value === "manual_required" ||
+        value === "pending" ||
+        value === "needs_changes" ||
+        value === "requested"
+    ) return "secondary" as const;
+    if (
+        value === "approved" ||
+        value === "graded" ||
+        value === "auto_graded" ||
+        value === "resubmitted"
+    ) return "default" as const;
     return "outline" as const;
 }
 
@@ -196,6 +224,8 @@ function buildQuery(filters: ResultFilters) {
         processingStatus: filters.processingStatus,
         scoreFilter: filters.scoreFilter,
         collectionLabel: filters.collectionLabel,
+        revisionStatus: filters.revisionStatus,
+        revisionCountFilter: filters.revisionCountFilter,
     });
     return params.toString();
 }
@@ -229,6 +259,8 @@ export function ResultListClient({
             filters.processingStatus !== "all" ? processingStatusLabels[filters.processingStatus] : null,
             filters.scoreFilter !== "all" ? scoreFilterLabels[filters.scoreFilter] : null,
             filters.collectionLabel !== "all" ? filters.collectionLabel : null,
+            filters.revisionStatus !== "all" ? revisionStatusLabels[filters.revisionStatus] : null,
+            filters.revisionCountFilter !== "all" ? revisionCountFilterLabels[filters.revisionCountFilter] : null,
             filters.query ? `关键词：${filters.query}` : null,
         ].filter(Boolean);
         return labels.length > 0 ? labels.join(" / ") : "当前显示全部结果";
@@ -348,7 +380,7 @@ export function ResultListClient({
 
             <Separator />
 
-            <form className="grid gap-2 lg:grid-cols-[minmax(220px,1.4fr)_repeat(5,minmax(132px,0.8fr))_auto]" onSubmit={handleSubmit}>
+            <form className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" onSubmit={handleSubmit}>
                 <Input
                     id="result-search"
                     name="query"
@@ -356,6 +388,7 @@ export function ResultListClient({
                     onChange={(event) => setDraftValue("query", event.target.value)}
                     placeholder="搜索邮箱、姓名、表单或内容"
                     aria-label="搜索结果"
+                    className="sm:col-span-2"
                 />
 
                 {!fixedFormId && (
@@ -373,6 +406,17 @@ export function ResultListClient({
                         </SelectContent>
                     </Select>
                 )}
+
+                <Select name="status" value={draftFilters.status} onValueChange={(value) => setDraftValue("status", value)}>
+                    <SelectTrigger id="result-status-filter" aria-label="筛选收集状态" className="w-full">
+                        <SelectValue placeholder="收集状态" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
 
                 <Select name="gradingStatus" value={draftFilters.gradingStatus} onValueChange={(value) => setDraftValue("gradingStatus", value)}>
                     <SelectTrigger id="result-grading-status-filter" aria-label="筛选批改状态" className="w-full">
@@ -419,6 +463,28 @@ export function ResultListClient({
                     </SelectContent>
                 </Select>
 
+                <Select name="revisionStatus" value={draftFilters.revisionStatus} onValueChange={(value) => setDraftValue("revisionStatus", value)}>
+                    <SelectTrigger id="result-revision-status-filter" aria-label="筛选补交状态" className="w-full">
+                        <SelectValue placeholder="补交状态" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {Object.entries(revisionStatusLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select name="revisionCountFilter" value={draftFilters.revisionCountFilter} onValueChange={(value) => setDraftValue("revisionCountFilter", value)}>
+                    <SelectTrigger id="result-revision-count-filter" aria-label="筛选修订版本数" className="w-full">
+                        <SelectValue placeholder="版本数" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {Object.entries(revisionCountFilterLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
                 <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
                     搜索
@@ -431,7 +497,7 @@ export function ResultListClient({
             </div>
 
             <div className="overflow-x-auto rounded-md border">
-                <Table className="min-w-[920px]">
+                <Table className="min-w-[1080px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>表单</TableHead>
@@ -440,6 +506,7 @@ export function ResultListClient({
                             <TableHead>分数</TableHead>
                             <TableHead>批改状态</TableHead>
                             <TableHead>处理状态</TableHead>
+                            <TableHead>修订</TableHead>
                             <TableHead>提交时间</TableHead>
                             <TableHead className="w-[88px]">操作</TableHead>
                         </TableRow>
@@ -447,13 +514,13 @@ export function ResultListClient({
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="py-10 text-center">
+                                <TableCell colSpan={9} className="py-10 text-center">
                                     <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
                                 </TableCell>
                             </TableRow>
                         ) : data.results.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="py-12">
+                                <TableCell colSpan={9} className="py-12">
                                     <div className="flex flex-col items-center justify-center text-center">
                                         <ClipboardList className="mb-4 size-12 text-muted-foreground" />
                                         <p className="text-muted-foreground">暂无结果</p>
@@ -492,6 +559,21 @@ export function ResultListClient({
                                         <Badge variant={getBadgeVariant(result.processing_status)}>
                                             {processingStatusLabels[result.processing_status] || result.processing_status}
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="space-y-1.5">
+                                            <Badge variant={getBadgeVariant(result.revision_status)}>
+                                                {revisionStatusLabels[result.revision_status] || result.revision_status}
+                                            </Badge>
+                                            <p className="text-xs text-muted-foreground">
+                                                {Math.max(1, toNumber(result.revision_count) ?? 1)} 个版本
+                                            </p>
+                                            {result.last_resubmitted_at && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {formatDate(result.last_resubmitted_at)} 补交
+                                                </p>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">{formatDate(result.created_at)}</TableCell>
                                     <TableCell>

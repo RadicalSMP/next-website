@@ -59,6 +59,8 @@ function buildResultWhere(filters: {
     processingStatus?: string;
     scoreFilter?: string;
     collectionLabel?: string;
+    revisionStatus?: string;
+    revisionCountFilter?: string;
 }): QueryBuildResult {
     const params: unknown[] = [];
     const conditions: string[] = [];
@@ -88,6 +90,24 @@ function buildResultWhere(filters: {
             "COALESCE(fv.result_config #>> '{collection,label}', '') = ?",
             filters.collectionLabel,
         );
+    }
+    if (
+        filters.revisionStatus === "none" ||
+        filters.revisionStatus === "requested" ||
+        filters.revisionStatus === "resubmitted"
+    ) {
+        pushFilter(
+            params,
+            conditions,
+            "fs.revision_status = ?",
+            filters.revisionStatus,
+        );
+    }
+    if (filters.revisionCountFilter === "initial") {
+        conditions.push("fs.revision_count = 1");
+    }
+    if (filters.revisionCountFilter === "multiple") {
+        conditions.push("fs.revision_count > 1");
     }
     if (filters.query?.trim()) {
         const pattern = `%${filters.query.trim()}%`;
@@ -350,6 +370,8 @@ export const getResultList = unstable_cache(
         processingStatus = "all",
         scoreFilter = "all",
         collectionLabel = "all",
+        revisionStatus = "all",
+        revisionCountFilter = "all",
     ) => {
         try {
             const offset = page * limit;
@@ -361,6 +383,8 @@ export const getResultList = unstable_cache(
                 processingStatus,
                 scoreFilter,
                 collectionLabel,
+                revisionStatus,
+                revisionCountFilter,
             });
 
             const countResult = await pool.query(
@@ -405,6 +429,7 @@ export const getResultList = unstable_cache(
                 `SELECT fs.id, fs.form_id, fs.form_version_id, fs.user_id, fs.user_email,
                         fs.status, fs.grading_status, fs.total_score, fs.max_score,
                         fs.processing_status, fs.processed_at, fs.processing_note,
+                        fs.revision_status, fs.revision_count, fs.last_resubmitted_at,
                         fs.created_at, fs.duration,
                         f.title AS form_title,
                         f.slug AS form_slug,

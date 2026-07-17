@@ -382,15 +382,28 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
 
     const saveGrades = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (!submission.current_revision_id) {
+            toast.error("当前结果缺少修订信息，请刷新后重试");
+            await refreshDetail();
+            return;
+        }
         setSavingGrades(true);
         try {
             const res = await fetch(`/api/forms/${submission.form_id}/results/${submission.id}/grades`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ grades: manualDrafts }),
+                body: JSON.stringify({
+                    revisionId: submission.current_revision_id,
+                    grades: manualDrafts,
+                }),
             });
             const data = await res.json();
             if (!res.ok) {
+                if (res.status === 409) {
+                    toast.error(data.error || "结果已更新，请刷新后重新批改");
+                    await refreshDetail();
+                    return;
+                }
                 toast.error(data.error || "保存批改失败");
                 return;
             }

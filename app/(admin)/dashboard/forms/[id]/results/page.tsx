@@ -40,6 +40,8 @@ export default async function SingleFormResultsPage({
         processingStatus: readParam(queryParams.processingStatus, "all"),
         scoreFilter: readParam(queryParams.scoreFilter, "all"),
         collectionLabel: readParam(queryParams.collectionLabel, "all"),
+        revisionStatus: readParam(queryParams.revisionStatus, "all"),
+        revisionCountFilter: readParam(queryParams.revisionCountFilter, "all"),
     };
 
     const data = await getResultList(
@@ -52,6 +54,8 @@ export default async function SingleFormResultsPage({
         filters.processingStatus,
         filters.scoreFilter,
         filters.collectionLabel,
+        filters.revisionStatus,
+        filters.revisionCountFilter,
     );
 
     const title = typeof form?.title === "string" && form.title.trim()

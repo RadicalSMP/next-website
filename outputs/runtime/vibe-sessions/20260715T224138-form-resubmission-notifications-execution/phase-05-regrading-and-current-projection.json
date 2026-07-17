@@ -1,0 +1,42 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "phase": "wave-05-regrading-and-current-projection",
+  "status": "completed",
+  "timestamp": "2026-07-17T23:28:29+08:00",
+  "outputs": [
+    "人工批改请求绑定 current revision ID",
+    "旧批改页面 revision 冲突返回 409 并刷新详情",
+    "评分查询、更新、汇总和事件全部绑定具体 revision",
+    "结果中心补交状态和版本数筛选",
+    "结果列表修订状态、版本数和最近补交时间展示",
+    "恢复结果中心收集状态筛选控件",
+    "CSV 按各提交字段快照导出当前答案投影",
+    "CSV 补交状态、版本数和最近补交时间列",
+    "CSV 公式注入防护"
+  ],
+  "verification": [
+    "旧 revision 1 批改页面在 revision 2 产生后返回 409 revision_conflict",
+    "409 后管理员详情刷新到 revision 2",
+    "revision 1 主观题分数和评语保持为空",
+    "revision 2 人工批改得分 7 且批改事件关联 revision 2",
+    "主提交当前投影为 graded、7/15、2 个版本、resubmitted",
+    "已补交与多个版本组合筛选只返回 1 条当前投影",
+    "仅初始版本筛选返回 revision_count=1 且 revision_status=none",
+    "CSV 返回当前客观题答案 a 并包含修订列",
+    "CSV 不包含正确答案或 expected_answer",
+    "CSV 公式字符串添加安全前缀，数值负数保持数值形式",
+    "390x844 页面无整体横向溢出，表格仅在自身容器滚动",
+    "最终浏览器控制台 0 error、0 warning",
+    "bun run seed:test-form-resubmission 通过",
+    "bun run verify:form-revisions 通过",
+    "bun run lint 通过",
+    "bunx tsc --noEmit 通过",
+    "bun run build 通过",
+    "git diff --check 通过"
+  ],
+  "notes": [
+    "结果统计继续以 form_submissions 为主表，未连接历史修订表，不会重复计数",
+    "浏览器测试全程只使用一个 Chrome 窗口，测试完成后已关闭",
+    "测试夹具已恢复到干净 revision 1"
+  ]
+}
