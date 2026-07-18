@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { invalidateSubmissionCache } from "@/lib/cache";
 import { isSameOriginMutation } from "@/lib/form-submission-access";
+import { sendGradingCompletedNotification } from "@/lib/form-notifications";
 
 type GradeInput = {
     fieldKey?: unknown;
@@ -61,6 +62,7 @@ export async function POST(
     }
 
     const client = await pool.connect();
+    let notification: Awaited<ReturnType<typeof sendGradingCompletedNotification>> | null = null;
     try {
         await client.query("BEGIN");
 
@@ -207,6 +209,22 @@ export async function POST(
         );
 
         await client.query("COMMIT");
+        if (submission.grading_status === "manual_required" && nextGradingStatus === "graded") {
+            try {
+                notification = await sendGradingCompletedNotification({
+                    submissionId,
+                    formId: id,
+                    revisionId,
+                    actorId: session.user.id,
+                });
+            } catch (error) {
+                notification = {
+                    status: "failed",
+                    notificationId: null,
+                    error: error instanceof Error ? error.message : "创建批改通知失败",
+                };
+            }
+        }
         invalidateSubmissionCache();
 
         return NextResponse.json({
@@ -214,6 +232,7 @@ export async function POST(
             gradingStatus: nextGradingStatus,
             totalScore: Number(aggregate.total_score),
             maxScore: Number(aggregate.max_score),
+            notification,
         });
     } catch (error) {
         await client.query("ROLLBACK");

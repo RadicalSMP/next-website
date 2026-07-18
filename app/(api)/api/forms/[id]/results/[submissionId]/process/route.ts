@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { invalidateSubmissionCache } from "@/lib/cache";
 import { isSameOriginMutation } from "@/lib/form-submission-access";
+import { sendProcessingChangedNotification } from "@/lib/form-notifications";
 import {
     normalizeFormFields,
     normalizeResultConfig,
@@ -65,11 +66,12 @@ export async function POST(
 
     const note = typeof payload.note === "string" ? payload.note.trim() || null : null;
     const client = await pool.connect();
+    let notification: Awaited<ReturnType<typeof sendProcessingChangedNotification>> | null = null;
     try {
         await client.query("BEGIN");
 
         const result = await client.query(
-            `SELECT fs.id, fs.form_id, fs.processing_status, fs.total_score, fs.max_score,
+            `SELECT fs.id, fs.form_id, fs.current_revision_id, fs.processing_status, fs.total_score, fs.max_score,
                     fv.fields, fv.result_config
              FROM form_submissions fs
              INNER JOIN form_versions fv ON fv.id = fs.form_version_id
@@ -110,14 +112,17 @@ export async function POST(
             [nextStatus, session.user.id, note, submissionId],
         );
 
-        await client.query(
+        const eventResult = await client.query<{ id: string }>(
             `INSERT INTO submission_events
-                (submission_id, form_id, event_type, action, from_status, to_status, note, score, max_score, actor_id, metadata)
-             VALUES ($1, $2, 'processing', $3, $4, $5, $6, $7, $8, $9, $10)`,
+                (submission_id, form_id, event_type, action, revision_id,
+                 from_status, to_status, note, score, max_score, actor_id, metadata)
+             VALUES ($1, $2, 'processing', $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             RETURNING id`,
             [
                 submissionId,
                 id,
                 action,
+                submission.current_revision_id,
                 submission.processing_status,
                 nextStatus,
                 note,
@@ -129,9 +134,29 @@ export async function POST(
         );
 
         await client.query("COMMIT");
+        const shouldNotify = submission.processing_status !== nextStatus &&
+            (nextStatus === "approved" || nextStatus === "rejected");
+        if (shouldNotify && submission.current_revision_id) {
+            try {
+                notification = await sendProcessingChangedNotification({
+                    submissionId,
+                    formId: id,
+                    revisionId: submission.current_revision_id,
+                    processingEventId: eventResult.rows[0].id,
+                    actorId: session.user.id,
+                    note,
+                });
+            } catch (error) {
+                notification = {
+                    status: "failed",
+                    notificationId: null,
+                    error: error instanceof Error ? error.message : "创建处理结果通知失败",
+                };
+            }
+        }
         invalidateSubmissionCache();
 
-        return NextResponse.json({ processingStatus: nextStatus });
+        return NextResponse.json({ processingStatus: nextStatus, notification });
     } catch (error) {
         await client.query("ROLLBACK");
         throw error;

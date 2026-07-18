@@ -1011,7 +1011,9 @@ function ResultSettingsPanel({
                             notifications: {
                                 ...prev.notifications,
                                 enabled: checked === true,
-                                template: checked === true ? (prev.notifications.template ?? "generic_result") : null,
+                                template: checked === true
+                                    ? (prev.notifications.template ?? "generic_result")
+                                    : prev.notifications.template,
                             },
                         }))}
                     />
@@ -1092,6 +1094,94 @@ function ResultSettingsPanel({
                                 </Select>
                             </div>
                         )}
+                        <div className="space-y-3 rounded-md border p-3">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <Label htmlFor="notification-auto-send" className="text-sm">自动发送</Label>
+                                    <p className="mt-1 text-xs text-muted-foreground">业务状态变化后自动投递，失败不会回滚结果。</p>
+                                </div>
+                                <Checkbox
+                                    id="notification-auto-send"
+                                    checked={resultConfig.notifications.autoSend}
+                                    onCheckedChange={(checked) => onResultConfigChange((prev) => ({
+                                        ...prev,
+                                        notifications: {
+                                            ...prev.notifications,
+                                            autoSend: checked === true,
+                                        },
+                                    }))}
+                                />
+                            </div>
+                            <Separator />
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">触发时机</Label>
+                                {([
+                                    ["revisionRequested", "请求补交", false],
+                                    ["gradingCompleted", "批改完成", !resultConfig.grading.enabled],
+                                    ["processingChanged", "处理结果变化", !resultConfig.processing.enabled],
+                                ] as const).map(([key, label, capabilityDisabled]) => (
+                                    <div key={key} className="flex items-center gap-2">
+                                        <Checkbox
+                                            id={`notification-event-${key}`}
+                                            checked={resultConfig.notifications.events[key]}
+                                            disabled={!resultConfig.notifications.autoSend || capabilityDisabled}
+                                            onCheckedChange={(checked) => onResultConfigChange((prev) => ({
+                                                ...prev,
+                                                notifications: {
+                                                    ...prev.notifications,
+                                                    events: {
+                                                        ...prev.notifications.events,
+                                                        [key]: checked === true,
+                                                    },
+                                                },
+                                            }))}
+                                        />
+                                        <Label
+                                            htmlFor={`notification-event-${key}`}
+                                            className="text-sm font-normal"
+                                        >
+                                            {label}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="space-y-3 rounded-md border p-3">
+                            <Label className="text-xs text-muted-foreground">成绩邮件内容</Label>
+                            {([
+                                ["includeQuestionScores", "逐题得分"],
+                                ["includeComments", "批改评语"],
+                                ["includeCorrectAnswers", "正确答案"],
+                            ] as const).map(([key, label]) => (
+                                <div key={key} className="flex items-center gap-2">
+                                    <Checkbox
+                                        id={`notification-content-${key}`}
+                                        checked={resultConfig.notifications.content[key]}
+                                        disabled={!resultConfig.grading.enabled}
+                                        onCheckedChange={(checked) => onResultConfigChange((prev) => ({
+                                            ...prev,
+                                            notifications: {
+                                                ...prev.notifications,
+                                                content: {
+                                                    ...prev.notifications.content,
+                                                    [key]: checked === true,
+                                                },
+                                            },
+                                        }))}
+                                    />
+                                    <Label
+                                        htmlFor={`notification-content-${key}`}
+                                        className="text-sm font-normal"
+                                    >
+                                        {label}
+                                    </Label>
+                                </div>
+                            ))}
+                            <div className="flex gap-2 text-xs text-amber-700 dark:text-amber-300">
+                                <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                                <span>发送正确答案可能造成题库泄露，默认保持关闭。</span>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

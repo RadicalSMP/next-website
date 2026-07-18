@@ -138,7 +138,9 @@ type ActiveRevisionRequest = {
 
 type NotificationRow = {
     id: string;
+    revision_id: string | null;
     event_type: string;
+    payload: Record<string, unknown>;
     status: string;
     attempts: number;
     recipient: string;
@@ -306,10 +308,13 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
     const [savingGrades, setSavingGrades] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [notifying, setNotifying] = useState(false);
+    const [retryingNotificationId, setRetryingNotificationId] = useState<string | null>(null);
     const [processDialog, setProcessDialog] = useState<ProcessAction | null>(null);
     const [processNote, setProcessNote] = useState("");
     const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
     const [notifyNote, setNotifyNote] = useState("");
+    const [confirmRepeatNotification, setConfirmRepeatNotification] = useState(false);
+    const [notifyRequestId, setNotifyRequestId] = useState<string | null>(null);
     const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
     const [revisionReason, setRevisionReason] = useState("");
     const [revisionExpiresAt, setRevisionExpiresAt] = useState("");
@@ -362,6 +367,20 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
         qq: readMappedValue(submission.data, resultConfig.fieldMappings.qq),
         mcid: readMappedValue(submission.data, resultConfig.fieldMappings.mcid),
     };
+    const currentNotificationEvent = submission.processing_status === "approved" || submission.processing_status === "rejected"
+        ? "processing_changed"
+        : submission.grading_status === "graded" || submission.grading_status === "auto_graded"
+            ? "grading_completed"
+            : null;
+    const hasSentCurrentNotification = Boolean(currentNotificationEvent && detail.notifications.some((notification) => (
+        notification.event_type === currentNotificationEvent &&
+        notification.revision_id === submission.current_revision_id &&
+        (
+            currentNotificationEvent !== "processing_changed" ||
+            notification.payload?.processingStatus === submission.processing_status
+        ) &&
+        notification.status === "sent"
+    )));
 
     const refreshDetail = async () => {
         const res = await fetch(`/api/forms/${submission.form_id}/results/${submission.id}`);
@@ -503,6 +522,7 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
             const data = await res.json();
             if (!res.ok) {
                 toast.error(data.error || (action === "cancel" ? "取消补充请求失败" : "重发通知失败"));
+                if (action === "resend" && data.notification) await refreshDetail();
                 return;
             }
             toast.success(action === "cancel" ? "补充请求已取消" : "补交通知已重发");
@@ -532,21 +552,50 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
             const res = await fetch(`/api/forms/${submission.form_id}/results/${submission.id}/notify`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ note: notifyNote }),
+                body: JSON.stringify({
+                    note: notifyNote,
+                    clientRequestId: notifyRequestId ?? crypto.randomUUID(),
+                    confirmRepeat: confirmRepeatNotification,
+                }),
             });
             const data = await res.json();
             if (!res.ok) {
                 toast.error(data.error || "发送通知失败");
+                if (data.notification) await refreshDetail();
                 return;
             }
             toast.success("结果通知已发送");
             setNotifyDialogOpen(false);
             setNotifyNote("");
+            setConfirmRepeatNotification(false);
+            setNotifyRequestId(null);
             await refreshDetail();
         } catch {
             toast.error("发送通知失败");
         } finally {
             setNotifying(false);
+        }
+    };
+
+    const retryNotification = async (notificationId: string) => {
+        setRetryingNotificationId(notificationId);
+        try {
+            const res = await fetch(
+                `/api/forms/${submission.form_id}/results/${submission.id}/notifications/${notificationId}/retry`,
+                { method: "POST" },
+            );
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "通知重试失败");
+                if (data.notification) await refreshDetail();
+                return;
+            }
+            toast.success("通知已重新发送");
+            await refreshDetail();
+        } catch {
+            toast.error("通知重试失败");
+        } finally {
+            setRetryingNotificationId(null);
         }
     };
 
@@ -597,8 +646,11 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
                             </Button>
                         </>
                     )}
-                    {resultConfig.notifications.enabled && (
-                        <Button onClick={() => setNotifyDialogOpen(true)}>
+                    {resultConfig.notifications.enabled && currentNotificationEvent && (
+                        <Button onClick={() => {
+                            setNotifyRequestId(crypto.randomUUID());
+                            setNotifyDialogOpen(true);
+                        }}>
                             <Bell className="size-4" />
                             发送通知
                         </Button>
@@ -991,6 +1043,21 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
                                     {notification.last_error && (
                                         <p className="mt-2 break-words whitespace-pre-wrap text-destructive">{notification.last_error}</p>
                                     )}
+                                    {notification.status === "failed" && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-3"
+                                            disabled={retryingNotificationId !== null}
+                                            onClick={() => retryNotification(notification.id)}
+                                        >
+                                            {retryingNotificationId === notification.id
+                                                ? <Loader2 className="size-4 animate-spin" />
+                                                : <RefreshCw className="size-4" />}
+                                            重试
+                                        </Button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -1146,7 +1213,11 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
             </Dialog>
 
             <Dialog open={notifyDialogOpen} onOpenChange={(open) => {
-                if (!open && !notifying) setNotifyDialogOpen(false);
+                if (!open && !notifying) {
+                    setNotifyDialogOpen(false);
+                    setConfirmRepeatNotification(false);
+                    setNotifyRequestId(null);
+                }
             }}>
                 <DialogContent>
                     <DialogHeader>
@@ -1162,9 +1233,24 @@ export function ResultDetailClient({ initialDetail }: ResultDetailClientProps) {
                             placeholder="可选"
                         />
                     </div>
+                    {hasSentCurrentNotification && (
+                        <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                            <Checkbox
+                                id="confirm-repeat-notification"
+                                checked={confirmRepeatNotification}
+                                onCheckedChange={(checked) => setConfirmRepeatNotification(checked === true)}
+                            />
+                            <Label htmlFor="confirm-repeat-notification" className="font-normal leading-5">
+                                该结果已发送过同类通知，我确认再次发送。
+                            </Label>
+                        </div>
+                    )}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setNotifyDialogOpen(false)} disabled={notifying}>取消</Button>
-                        <Button onClick={sendNotification} disabled={notifying}>
+                        <Button
+                            onClick={sendNotification}
+                            disabled={notifying || (hasSentCurrentNotification && !confirmRepeatNotification)}
+                        >
                             {notifying ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                             发送
                         </Button>

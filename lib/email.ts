@@ -18,6 +18,14 @@ export type FormEmailContent = {
     text: string;
 };
 
+export type GradingEmailItem = {
+    label: string;
+    score: string | number | null;
+    maxScore: string | number;
+    comment?: string | null;
+    correctAnswer?: unknown;
+};
+
 function escapeHtml(value: string) {
     return value
         .replace(/&/g, "&amp;")
@@ -78,6 +86,7 @@ export function buildRevisionRequestedEmail(params: {
 export async function sendFormEmail(params: {
     to: string;
     content: FormEmailContent;
+    idempotencyKey?: string;
 }) {
     const result = await getResend().emails.send({
         from: FROM,
@@ -85,7 +94,7 @@ export async function sendFormEmail(params: {
         subject: params.content.subject,
         html: params.content.html,
         text: params.content.text,
-    });
+    }, params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : undefined);
     if (result.error) {
         throw new Error(result.error.message || "邮件提供商返回失败");
     }
@@ -93,6 +102,135 @@ export async function sendFormEmail(params: {
         throw new Error("邮件提供商未返回消息 ID");
     }
     return { providerMessageId: result.data.id };
+}
+
+function sanitizeSubject(value: string) {
+    return value.replace(/[\r\n]+/g, " ").trim();
+}
+
+function formatEmailValue(value: unknown) {
+    if (value === null || value === undefined || value === "") return "未设置";
+    if (Array.isArray(value)) return value.map((item) => String(item)).join("、");
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+}
+
+function getResultSubject(template: Exclude<ResultNotificationTemplate, null>, formTitle: string) {
+    if (template === "join_application_result") return "入服申请结果通知 - RadicalSMP";
+    if (template === "score_result") return `表单成绩通知 - ${sanitizeSubject(formTitle)}`;
+    return `表单结果通知 - ${sanitizeSubject(formTitle)}`;
+}
+
+export function buildGradingCompletedEmail(params: {
+    template: Exclude<ResultNotificationTemplate, null>;
+    formTitle: string;
+    recipientName?: string | null;
+    totalScore: string | number | null;
+    maxScore: string | number | null;
+    items: GradingEmailItem[];
+    includeQuestionScores: boolean;
+    includeComments: boolean;
+    includeCorrectAnswers: boolean;
+    resultUrl: string;
+}): FormEmailContent {
+    const safeTitle = escapeHtml(params.formTitle);
+    const safeName = escapeHtml(params.recipientName?.trim() || "你好");
+    const safeResultUrl = escapeHtml(params.resultUrl);
+    const scoreText = params.totalScore !== null && params.maxScore !== null
+        ? `${formatEmailValue(params.totalScore)} / ${formatEmailValue(params.maxScore)}`
+        : "暂无总分";
+    const safeScoreText = escapeHtml(scoreText);
+    const visibleItems = params.items.filter((item) => (
+        params.includeQuestionScores ||
+        (params.includeComments && Boolean(item.comment)) ||
+        (params.includeCorrectAnswers && item.correctAnswer !== undefined)
+    ));
+    const itemHtml = visibleItems.map((item) => {
+        const score = `${formatEmailValue(item.score)} / ${formatEmailValue(item.maxScore)}`;
+        return `
+            <li style="margin-bottom: 12px;">
+                <strong>${escapeHtml(item.label)}</strong>
+                ${params.includeQuestionScores ? `<div>得分：${escapeHtml(score)}</div>` : ""}
+                ${params.includeComments && item.comment ? `<div>评语：${escapeHtml(item.comment)}</div>` : ""}
+                ${params.includeCorrectAnswers && item.correctAnswer !== undefined
+                    ? `<div>正确答案：${escapeHtml(formatEmailValue(item.correctAnswer))}</div>`
+                    : ""}
+            </li>
+        `;
+    }).join("");
+    const itemText = visibleItems.flatMap((item) => {
+        const lines = [item.label];
+        if (params.includeQuestionScores) {
+            lines.push(`得分：${formatEmailValue(item.score)} / ${formatEmailValue(item.maxScore)}`);
+        }
+        if (params.includeComments && item.comment) lines.push(`评语：${item.comment}`);
+        if (params.includeCorrectAnswers && item.correctAnswer !== undefined) {
+            lines.push(`正确答案：${formatEmailValue(item.correctAnswer)}`);
+        }
+        return lines;
+    });
+
+    return {
+        subject: getResultSubject(params.template, params.formTitle),
+        html: `
+            <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; color: #18181b;">
+                <h2 style="margin-bottom: 16px;">${safeTitle}</h2>
+                <p>${safeName}，你的表单已完成批改。</p>
+                <div style="background: #f4f4f5; padding: 12px 16px; border-radius: 6px; margin: 16px 0;">
+                    <strong>总分：${safeScoreText}</strong>
+                </div>
+                ${itemHtml ? `<ul style="padding-left: 20px;">${itemHtml}</ul>` : ""}
+                <a href="${safeResultUrl}" style="display: inline-block; padding: 12px 20px; background: #171717; color: #fff; text-decoration: none; border-radius: 6px; margin: 8px 0 16px;">查看结果</a>
+                <p style="color: #666; font-size: 14px;">如果你对结果有疑问，请联系管理员。</p>
+            </div>
+        `,
+        text: [
+            params.formTitle,
+            `${params.recipientName?.trim() || "你好"}，你的表单已完成批改。`,
+            `总分：${scoreText}`,
+            ...itemText,
+            `查看结果：${params.resultUrl}`,
+            "如果你对结果有疑问，请联系管理员。",
+        ].join("\n"),
+    };
+}
+
+export function buildProcessingResultEmail(params: {
+    template: Exclude<ResultNotificationTemplate, null>;
+    formTitle: string;
+    recipientName?: string | null;
+    processingStatus: "approved" | "rejected";
+    note?: string | null;
+    resultUrl: string;
+}): FormEmailContent {
+    const statusLabel = params.processingStatus === "approved" ? "已通过" : "已拒绝";
+    const safeTitle = escapeHtml(params.formTitle);
+    const safeName = escapeHtml(params.recipientName?.trim() || "你好");
+    const safeStatus = escapeHtml(statusLabel);
+    const safeNote = params.note ? escapeHtml(params.note) : "";
+    const safeResultUrl = escapeHtml(params.resultUrl);
+
+    return {
+        subject: getResultSubject(params.template, params.formTitle),
+        html: `
+            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #18181b;">
+                <h2 style="margin-bottom: 16px;">${safeTitle}</h2>
+                <p>${safeName}，你的表单处理结果已更新。</p>
+                <p><strong>处理结果：${safeStatus}</strong></p>
+                ${safeNote ? `<div style="background: #f4f4f5; padding: 12px 16px; border-radius: 6px; margin: 16px 0;"><p style="margin: 0 0 4px; color: #666; font-size: 14px;">管理员备注</p><p style="margin: 0;">${safeNote}</p></div>` : ""}
+                <a href="${safeResultUrl}" style="display: inline-block; padding: 12px 20px; background: #171717; color: #fff; text-decoration: none; border-radius: 6px; margin: 8px 0 16px;">查看结果</a>
+                <p style="color: #666; font-size: 14px;">如果你对结果有疑问，请联系管理员。</p>
+            </div>
+        `,
+        text: [
+            params.formTitle,
+            `${params.recipientName?.trim() || "你好"}，你的表单处理结果已更新。`,
+            `处理结果：${statusLabel}`,
+            ...(params.note ? [`管理员备注：${params.note}`] : []),
+            `查看结果：${params.resultUrl}`,
+            "如果你对结果有疑问，请联系管理员。",
+        ].join("\n"),
+    };
 }
 
 export async function sendPasswordResetEmail(params: {
@@ -144,69 +282,6 @@ export async function sendVerificationEmail(params: {
                 </a>
                 <p style="color: #666; font-size: 14px;">如果您没有注册 RadicalSMP，请忽略此邮件。</p>
                 <p style="color: #666; font-size: 14px;">此链接将在 1 小时后过期。</p>
-            </div>
-        `,
-    });
-}
-
-export async function sendFormResultNotificationEmail(params: {
-    to: string;
-    template: Exclude<ResultNotificationTemplate, null>;
-    formTitle: string;
-    recipientName?: string | null;
-    processingStatus?: string | null;
-    totalScore?: string | number | null;
-    maxScore?: string | number | null;
-    note?: string | null;
-}) {
-    const {
-        to,
-        template,
-        formTitle,
-        recipientName,
-        processingStatus,
-        totalScore,
-        maxScore,
-        note,
-    } = params;
-
-    const safeName = recipientName ? escapeHtml(recipientName) : "你好";
-    const safeFormTitle = escapeHtml(formTitle);
-    const safeNote = note ? escapeHtml(note) : "";
-    const scoreText = totalScore !== null && totalScore !== undefined && maxScore !== null && maxScore !== undefined
-        ? `${escapeHtml(String(totalScore))} / ${escapeHtml(String(maxScore))}`
-        : null;
-
-    const statusLabel: Record<string, string> = {
-        pending: "待处理",
-        approved: "已通过",
-        rejected: "已拒绝",
-        needs_changes: "需补充",
-        not_required: "无需处理",
-    };
-    const safeStatus = processingStatus
-        ? escapeHtml(statusLabel[processingStatus] ?? processingStatus)
-        : null;
-
-    const subject = template === "join_application_result"
-        ? `入服申请结果通知 - RadicalSMP`
-        : template === "score_result"
-            ? `表单成绩通知 - ${safeFormTitle}`
-            : `表单结果通知 - ${safeFormTitle}`;
-
-    await getResend().emails.send({
-        from: FROM,
-        to,
-        subject,
-        html: `
-            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #18181b;">
-                <h2 style="margin-bottom: 16px;">${safeFormTitle}</h2>
-                <p>${safeName}，你好！</p>
-                <p>你的表单结果已更新。</p>
-                ${safeStatus ? `<p><strong>处理状态：</strong>${safeStatus}</p>` : ""}
-                ${scoreText ? `<p><strong>成绩：</strong>${scoreText}</p>` : ""}
-                ${safeNote ? `<div style="background: #f4f4f5; padding: 12px 16px; border-radius: 6px; margin: 16px 0;"><p style="margin: 0; color: #666; font-size: 14px;">备注</p><p style="margin: 4px 0 0 0;">${safeNote}</p></div>` : ""}
-                <p style="color: #666; font-size: 14px;">如果你对结果有疑问，请联系管理员。</p>
             </div>
         `,
     });

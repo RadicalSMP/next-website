@@ -136,7 +136,8 @@ async function migrate() {
                 "fingerprint" TEXT,
                 "duration" INTEGER,
                 "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                UNIQUE ("submission_id", "revision_number")
+                UNIQUE ("submission_id", "revision_number"),
+                UNIQUE ("id", "submission_id")
             );
         `);
 
@@ -156,7 +157,8 @@ async function migrate() {
                 "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 "fulfilled_at" TIMESTAMPTZ,
                 "cancelled_at" TIMESTAMPTZ,
-                CHECK ("edit_scope" = 'all' OR CARDINALITY("editable_field_keys") > 0)
+                CHECK ("edit_scope" = 'all' OR CARDINALITY("editable_field_keys") > 0),
+                UNIQUE ("id", "submission_id")
             );
         `);
 
@@ -219,11 +221,12 @@ async function migrate() {
             CREATE TABLE "submission_notifications" (
                 "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 "submission_id" UUID NOT NULL REFERENCES "form_submissions"("id") ON DELETE CASCADE,
-                "revision_id" UUID REFERENCES "form_submission_revisions"("id") ON DELETE SET NULL,
-                "revision_request_id" UUID REFERENCES "submission_revision_requests"("id") ON DELETE SET NULL,
+                "revision_id" UUID,
+                "revision_request_id" UUID,
                 "event_type" TEXT NOT NULL
                     CHECK ("event_type" IN ('revision_requested', 'grading_completed', 'processing_changed')),
-                "template" TEXT NOT NULL,
+                "template" TEXT NOT NULL
+                    CHECK ("template" IN ('revision_requested', 'join_application_result', 'score_result', 'generic_result')),
                 "recipient" TEXT NOT NULL,
                 "payload" JSONB NOT NULL DEFAULT '{}',
                 "status" TEXT NOT NULL DEFAULT 'pending'
@@ -234,7 +237,18 @@ async function migrate() {
                 "last_error" TEXT,
                 "sent_at" TIMESTAMPTZ,
                 "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                FOREIGN KEY ("revision_id", "submission_id")
+                    REFERENCES "form_submission_revisions"("id", "submission_id") ON DELETE CASCADE,
+                FOREIGN KEY ("revision_request_id", "submission_id")
+                    REFERENCES "submission_revision_requests"("id", "submission_id") ON DELETE CASCADE,
+                CHECK (
+                    ("event_type" = 'revision_requested' AND "template" = 'revision_requested' AND "revision_request_id" IS NOT NULL)
+                    OR
+                    ("event_type" IN ('grading_completed', 'processing_changed')
+                        AND "template" IN ('join_application_result', 'score_result', 'generic_result')
+                        AND "revision_id" IS NOT NULL)
+                )
             );
         `);
 

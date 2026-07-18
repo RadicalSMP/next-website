@@ -1,0 +1,48 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "phase": "wave-06-email-notifications-and-retries",
+  "status": "completed",
+  "timestamp": "2026-07-18T13:12:44+08:00",
+  "outputs": [
+    "补交请求、批改完成和处理结果纯邮件模板，包含 HTML 与纯文本",
+    "邮件用户内容统一 HTML 转义，成绩邮件默认不包含正确答案",
+    "通用通知状态机 pending -> sending -> sent/failed",
+    "Resend 幂等键、provider message ID、错误摘要和 attempts 记录",
+    "批改首次进入 graded 时自动通知，重复保存不重复发送",
+    "处理首次进入 approved/rejected 时自动通知，重复状态不重复发送",
+    "手动结果通知使用独立请求 ID，并对已发送的同一结论要求显式确认",
+    "失败通知重试 API 与结果详情重试操作",
+    "匿名通知安全访问链接、失败令牌撤销和旧修订重试保护",
+    "编辑器自动发送、触发事件和邮件内容配置 UI",
+    "通知表模板约束和跨提交复合外键"
+  ],
+  "verification": [
+    "bun run migrate:forms 从零重建通过",
+    "bun run seed:join-form 通过",
+    "bun run seed:test-form-resubmission 通过并在结束时恢复干净夹具",
+    "bun run verify:form-revisions 通过",
+    "bun run verify:form-notifications 通过",
+    "bun run verify:form-notification-domain 通过",
+    "通知领域验证覆盖成功投递、自动幂等、失败不回滚、重试成功和 attempts=2",
+    "匿名补交通知失败后新令牌已撤销，重试邮件链接可兑换并轮换 Cookie 令牌",
+    "浏览器自动批改通知失败后批改结果保持 13/15，通知状态为 failed",
+    "浏览器重试后同一通知 attempts 从 1 递增到 3，失败事件逐次保留",
+    "重复保存 graded 批改只保留 1 条自动成绩通知",
+    "重复 approved 处理只保留 1 条自动处理通知",
+    "手动重复发送对话框默认禁用发送按钮，确认后创建独立手动通知记录",
+    "390x844 和 1440x900 页面 scrollWidth 等于 clientWidth",
+    "浏览器测试全程只使用一个 Chrome 窗口并已关闭",
+    "数据库 idle in transaction 为 0",
+    "bun run lint 通过",
+    "bunx tsc --noEmit 通过",
+    "bun run build 通过",
+    "git diff --check 通过"
+  ],
+  "notes": [
+    "当前 Resend 发件域名 hami.su 未验证，真实投递返回 502；失败记录、重试和业务不回滚已按预期验证",
+    "真实成功投递与匿名邮件链接通过可注入内存传输器完成领域验证，不发送测试邮件",
+    "浏览器控制台错误仅为刻意触发的通知 502，另有登录页既有 password form 提示",
+    ".playwright-cli 为本次浏览器生成的未跟踪临时目录；删除被执行策略阻止，未纳入暂存",
+    "任务外 .serena/project.yml、AGENTS.md、README.md 和 .opencode/package-lock.json 未修改或暂存"
+  ]
+}

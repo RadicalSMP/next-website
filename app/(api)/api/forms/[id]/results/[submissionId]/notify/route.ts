@@ -1,31 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { pool } from "@/lib/db";
 import { invalidateSubmissionCache } from "@/lib/cache";
-import { sendFormResultNotificationEmail } from "@/lib/email";
-import { normalizeFormFields, normalizeResultConfig } from "@/lib/forms";
+import { pool } from "@/lib/db";
+import { isSameOriginMutation } from "@/lib/form-submission-access";
+import {
+    sendGradingCompletedNotification,
+    sendProcessingChangedNotification,
+} from "@/lib/form-notifications";
 
 async function requireAdmin() {
     const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user || (session.user as Record<string, unknown>).role !== "admin") {
-        return null;
-    }
+    if (!session?.user || (session.user as Record<string, unknown>).role !== "admin") return null;
     return session;
-}
-
-function readMappedValue(data: unknown, key: string | null | undefined) {
-    if (!key || typeof data !== "object" || data === null || Array.isArray(data)) {
-        return null;
-    }
-    const value = (data as Record<string, unknown>)[key];
-    if (value === null || value === undefined) {
-        return null;
-    }
-    if (Array.isArray(value)) {
-        return value.join("、");
-    }
-    return String(value);
 }
 
 export async function POST(
@@ -33,109 +20,97 @@ export async function POST(
     { params }: { params: Promise<{ id: string; submissionId: string }> },
 ) {
     const session = await requireAdmin();
-    if (!session) {
-        return NextResponse.json({ error: "未授权" }, { status: 403 });
+    if (!session) return NextResponse.json({ error: "未授权" }, { status: 403 });
+    if (!isSameOriginMutation(request)) {
+        return NextResponse.json({ error: "请求来源无效" }, { status: 403 });
     }
 
     const { id, submissionId } = await params;
-    const body = await request.json().catch(() => ({}));
-    const note = typeof body.note === "string" ? body.note.trim() || null : null;
+    const body = await request.json().catch(() => null) as unknown;
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return NextResponse.json({ error: "请求数据格式无效" }, { status: 400 });
+    }
+    const payload = body as Record<string, unknown>;
+    const clientRequestId = typeof payload.clientRequestId === "string" ? payload.clientRequestId.trim() : "";
+    const note = typeof payload.note === "string" ? payload.note.trim() || null : null;
+    const confirmRepeat = payload.confirmRepeat === true;
+    if (clientRequestId.length < 8) {
+        return NextResponse.json({ error: "缺少有效的发送请求标识" }, { status: 400 });
+    }
 
-    const result = await pool.query(
-        `SELECT fs.id, fs.form_id, fs.user_email, fs.data, fs.processing_status,
-                fs.processing_note, fs.total_score, fs.max_score,
-                f.title AS form_title,
-                fv.fields, fv.result_config,
-                u.email AS account_email,
-                u.name AS user_name
-         FROM form_submissions fs
-         INNER JOIN forms f ON f.id = fs.form_id
-         INNER JOIN form_versions fv ON fv.id = fs.form_version_id
-         LEFT JOIN "user" u ON fs.user_id = u.id
-         WHERE fs.id = $1 AND fs.form_id = $2`,
+    const result = await pool.query<{
+        current_revision_id: string | null;
+        grading_status: string;
+        processing_status: string;
+    }>(
+        `SELECT current_revision_id, grading_status, processing_status
+         FROM form_submissions
+         WHERE id = $1 AND form_id = $2`,
         [submissionId, id],
     );
-
     const submission = result.rows[0];
-    if (!submission) {
-        return NextResponse.json({ error: "结果不存在" }, { status: 404 });
+    if (!submission) return NextResponse.json({ error: "结果不存在" }, { status: 404 });
+    if (!submission.current_revision_id) {
+        return NextResponse.json({ error: "结果缺少当前修订信息" }, { status: 409 });
     }
 
-    const fields = normalizeFormFields(submission.fields);
-    const resultConfig = normalizeResultConfig(submission.result_config, fields);
-    if (!resultConfig.notifications.enabled || !resultConfig.notifications.template) {
-        return NextResponse.json({ error: "该表单版本未启用结果通知" }, { status: 400 });
+    const eventType = submission.processing_status === "approved" || submission.processing_status === "rejected"
+        ? "processing_changed"
+        : submission.grading_status === "graded" || submission.grading_status === "auto_graded"
+            ? "grading_completed"
+            : null;
+    if (!eventType) {
+        return NextResponse.json({ error: "当前结果尚未形成可通知的批改或处理结论" }, { status: 409 });
     }
 
-    const recipient = resultConfig.notifications.recipient.source === "account_email"
-        ? submission.account_email || submission.user_email
-        : readMappedValue(
-            submission.data,
-            resultConfig.notifications.recipient.fieldKey || resultConfig.fieldMappings.email,
+    if (!confirmRepeat) {
+        const sentResult = await pool.query(
+            `SELECT id
+             FROM submission_notifications
+             WHERE submission_id = $1
+               AND revision_id = $2
+               AND event_type = $3
+               AND ($3 <> 'processing_changed' OR payload->>'processingStatus' = $4)
+               AND status = 'sent'
+             LIMIT 1`,
+            [submissionId, submission.current_revision_id, eventType, submission.processing_status],
         );
-
-    if (!recipient) {
-        return NextResponse.json({ error: "无法解析通知收件人" }, { status: 400 });
+        if (sentResult.rows.length > 0) {
+            return NextResponse.json({
+                error: "该结果已发送过同类通知，请确认后再次发送",
+                code: "confirmation_required",
+            }, { status: 409 });
+        }
     }
 
-    const recipientName = readMappedValue(submission.data, resultConfig.fieldMappings.playerName)
-        || submission.user_name
-        || null;
-
-    try {
-        await sendFormResultNotificationEmail({
-            to: recipient,
-            template: resultConfig.notifications.template,
-            formTitle: submission.form_title,
-            recipientName,
-            processingStatus: submission.processing_status,
-            totalScore: submission.total_score,
-            maxScore: submission.max_score,
-            note: note || submission.processing_note,
+    const notification = eventType === "processing_changed"
+        ? await sendProcessingChangedNotification({
+            submissionId,
+            formId: id,
+            revisionId: submission.current_revision_id,
+            actorId: session.user.id,
+            note,
+            manual: true,
+            clientRequestId,
+        })
+        : await sendGradingCompletedNotification({
+            submissionId,
+            formId: id,
+            revisionId: submission.current_revision_id,
+            actorId: session.user.id,
+            manual: true,
+            clientRequestId,
         });
+    invalidateSubmissionCache();
 
-        await pool.query(
-            `INSERT INTO submission_events
-                (submission_id, form_id, event_type, action, to_status, note, score, max_score, actor_id, metadata)
-             VALUES ($1, $2, 'notification', 'sent', $3, $4, $5, $6, $7, $8)`,
-            [
-                submissionId,
-                id,
-                submission.processing_status,
-                note,
-                submission.total_score,
-                submission.max_score,
-                session.user.id,
-                JSON.stringify({
-                    template: resultConfig.notifications.template,
-                    recipientSource: resultConfig.notifications.recipient.source,
-                }),
-            ],
-        );
-
-        invalidateSubmissionCache();
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await pool.query(
-            `INSERT INTO submission_events
-                (submission_id, form_id, event_type, action, to_status, note, score, max_score, actor_id, metadata)
-             VALUES ($1, $2, 'notification', 'failed', $3, $4, $5, $6, $7, $8)`,
-            [
-                submissionId,
-                id,
-                submission.processing_status,
-                note,
-                submission.total_score,
-                submission.max_score,
-                session.user.id,
-                JSON.stringify({
-                    template: resultConfig.notifications.template,
-                    recipientSource: resultConfig.notifications.recipient.source,
-                    error: error instanceof Error ? error.message : "unknown",
-                }),
-            ],
-        );
-        invalidateSubmissionCache();
-        return NextResponse.json({ error: "通知发送失败，已记录事件" }, { status: 502 });
+    if (notification.status === "not_found") {
+        return NextResponse.json({ error: notification.error }, { status: 404 });
     }
+    if (notification.status === "failed") {
+        return NextResponse.json({ error: "结果通知发送失败", notification }, { status: 502 });
+    }
+    if (notification.status === "skipped" || notification.status === "sending") {
+        return NextResponse.json({ error: notification.error || "结果通知未完成", notification }, { status: 409 });
+    }
+    return NextResponse.json({ notification });
 }
