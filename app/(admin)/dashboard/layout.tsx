@@ -5,21 +5,10 @@ import { ModeToggle } from "@/components/theme-toggle";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 function DashboardLayoutFallback() {
     return (
@@ -77,7 +66,7 @@ export default function DashboardRootLayout({
 }>) {
     return (
         <html lang="zh-cn" suppressHydrationWarning>
-            <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+            <body className="font-sans antialiased">
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="system"

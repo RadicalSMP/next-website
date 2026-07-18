@@ -4,9 +4,7 @@ export const CACHE_TAGS = {
     FORMS: "forms",
     ADMIN_FORMS: "admin-forms",
     FORM_SUBMISSIONS: "form-submissions",
-    REVIEW_SUBMISSIONS: "review-submissions",
-    REVIEW_RULES: "review-rules",
-    REVIEW_CONFIG: "review-config",
+    FORM_RESULTS: "form-results",
     ADMIN_USERS: "admin-users",
     SETTINGS: "settings",
     INVITATION_CODES: "invitation-codes",
@@ -18,4 +16,16 @@ export function getBlogPostTag(slug: string) {
 
 export function getFormTag(slug: string) {
     return `form:${slug}`;
+}
+
+export function getFormSubmissionTag(submissionId: string) {
+    return `form-submission:${submissionId}`;
+}
+
+export function getUserFormSubmissionsTag(userId: string) {
+    return `user-form-submissions:${userId}`;
+}
+
+export function getFormResultRevisionsTag(submissionId: string) {
+    return `form-result-revisions:${submissionId}`;
 }

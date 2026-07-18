@@ -1,0 +1,39 @@
+{
+  "runId": "20260714T230035-form-results-regression",
+  "phase": "database-and-static-verification",
+  "status": "passed",
+  "checks": [
+    {
+      "command": "bun run migrate:forms",
+      "status": "passed"
+    },
+    {
+      "command": "bun run seed:join-form",
+      "status": "passed"
+    },
+    {
+      "command": "bun run lint",
+      "status": "passed"
+    },
+    {
+      "command": "bunx tsc --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    },
+    {
+      "command": "bun run build",
+      "status": "passed"
+    }
+  ],
+  "databaseState": {
+    "forms": 2,
+    "formVersions": 2,
+    "formSubmissions": 1,
+    "submissionGrades": 2,
+    "submissionEvents": 2,
+    "idleInTransaction": 0
+  }
+}

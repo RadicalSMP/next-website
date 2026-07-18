@@ -1,0 +1,34 @@
+{
+  "runId": "20260713T195035-form-results-grading",
+  "phase": "verification",
+  "status": "partial_external_blocker",
+  "checks": [
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    },
+    {
+      "command": "bun run lint",
+      "status": "passed"
+    },
+    {
+      "command": "bunx tsc --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "bun run migrate:forms",
+      "status": "blocked",
+      "reason": "PostgreSQL 返回 tenant/user not found，连接在执行迁移 SQL 前失败。"
+    },
+    {
+      "command": "bun run seed:join-form",
+      "status": "not_run",
+      "reason": "迁移连接失败后未继续执行依赖同一数据库的种子脚本。"
+    },
+    {
+      "command": "bun run build",
+      "status": "blocked",
+      "reason": "编译和 TypeScript 通过；收集 /blogs/[slug] 页面数据时因同一 PostgreSQL 租户错误失败。"
+    }
+  ]
+}

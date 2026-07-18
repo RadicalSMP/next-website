@@ -21,6 +21,11 @@ export default function SignIn() {
     const [rememberMe, setRememberMe] = useState(false);
     const router = useRouter();
 
+    const getSafeCallbackUrl = () => {
+        const value = new URLSearchParams(window.location.search).get("callbackURL");
+        return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+    };
+
     return (
         <AuthShell title="欢迎回来" description="登录 RadicalSMP 账户，继续处理表单、验证状态和社区相关事务。">
             <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
@@ -100,7 +105,7 @@ export default function SignIn() {
                                             }
                                         },
                                         onSuccess: () => {
-                                            router.push("/");
+                                            router.push(getSafeCallbackUrl());
                                         },
                                     },
                                 });

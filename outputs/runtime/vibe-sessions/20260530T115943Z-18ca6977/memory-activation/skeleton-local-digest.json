@@ -1,0 +1,17 @@
+{
+  "stage": "skeleton_check",
+  "owner": "state_store",
+  "status": "fallback_local_digest",
+  "generated_at": "2026-05-30T11:59:45Z",
+  "source_receipt_path": "C:\\rsmp_projects\\next-website\\outputs\\runtime\\vibe-sessions\\20260530T115943Z-18ca6977\\skeleton-receipt.json",
+  "items": [
+    "Task focus: Redesign admin dashboard form management UI in Next.js; replace existing form management section; minimal backend changes; Google Docs style; form editor opens in new browser tab without dashboard sidebar; au...",
+    "Git branch: ",
+    "All required governed runtime prerequisite paths are present."
+  ],
+  "budget": {
+    "top_k": 3,
+    "max_tokens": 96,
+    "max_chars_per_item": 220
+  }
+}

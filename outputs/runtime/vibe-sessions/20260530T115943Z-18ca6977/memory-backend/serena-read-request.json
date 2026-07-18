@@ -1,0 +1,22 @@
+{
+  "lane": "serena",
+  "stage": "deep_interview",
+  "task": "Redesign admin dashboard form management UI in Next.js; replace existing form management section; minimal backend changes; Google Docs style; form editor opens in new browser tab without dashboard sidebar; autosave to prevent data loss on accidental close",
+  "top_k": 3,
+  "max_chars_per_item": 240,
+  "keywords": [
+    "redesign",
+    "admin",
+    "dashboard",
+    "form",
+    "management",
+    "next",
+    "replace",
+    "existing",
+    "section",
+    "minimal",
+    "backend",
+    "changes"
+  ],
+  "project_key_source": null
+}

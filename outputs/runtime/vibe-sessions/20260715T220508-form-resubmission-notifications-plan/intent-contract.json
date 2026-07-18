@@ -1,0 +1,25 @@
+{
+  "runId": "20260715T220508-form-resubmission-notifications-plan",
+  "stage": "deep_interview",
+  "status": "frozen",
+  "goal": "规划用户补交闭环和批改结果邮件通知。",
+  "confirmedDecisions": [
+    "登录用户通过账号访问自己的提交",
+    "匿名用户通过有效邮件签名链接访问",
+    "补交使用不可变修订历史，不覆盖原答案",
+    "管理员可授权全部字段或指定字段",
+    "补交后重新评分并恢复 pending",
+    "补交请求、批改完成和处理变化支持自动邮件",
+    "保留手动发送和重试",
+    "邮件默认不包含正确答案"
+  ],
+  "constraints": [
+    "本轮只规划不实现",
+    "不引入多级审批",
+    "不修改 better-auth 表",
+    "保留现有结果列表单行投影",
+    "任务外工作区改动不纳入规划文件"
+  ],
+  "autonomyMode": "interactive_governed",
+  "remainingQuestions": []
+}

@@ -2,21 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getFormBySlug } from "@/lib/cache";
+import { normalizeFormFields } from "@/lib/forms";
 
-// ─── GET /api/forms/by-slug/[slug] — 按 slug 获取表单 ─────
 export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ slug: string }> },
 ) {
     const { slug } = await params;
-
     const form = await getFormBySlug(slug);
 
     if (!form) {
-        return NextResponse.json({ error: "表单不存在或已关闭" }, { status: 404 });
+        return NextResponse.json({ error: "表单不存在、未发布或已归档" }, { status: 404 });
     }
 
-    // 权限校验
     if (form.visibility === "authenticated" || form.visibility === "members") {
         const session = await auth.api.getSession({ headers: await headers() }).catch(() => null);
 
@@ -32,15 +30,17 @@ export async function GET(
         }
     }
 
-    // 返回前端渲染所需数据（不返回 allowed_user_ids 等敏感信息）
     return NextResponse.json({
         form: {
             id: form.id,
-            title: form.title,
-            description: form.description,
+            title: form.published_title,
+            description: form.published_description,
             slug: form.slug,
-            fields: form.fields,
             visibility: form.visibility,
+            versionId: form.version_id,
+            version: form.version,
+            fields: normalizeFormFields(form.fields),
+            settings: form.settings,
         },
     });
 }

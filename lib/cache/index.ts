@@ -1,4 +1,9 @@
-export { CACHE_TAGS } from "./tags";
+export {
+    CACHE_TAGS,
+    getFormResultRevisionsTag,
+    getFormSubmissionTag,
+    getUserFormSubmissionsTag,
+} from "./tags";
 
 export {
     getPublishedPosts,
@@ -14,19 +19,13 @@ export {
     getFormBySlug,
     getAdminForms,
     getAdminFormById,
+    getFormVersions,
     getFormSubmissions,
+    getResultList,
+    getResultDetail,
     invalidateFormCache,
     invalidateSubmissionCache,
 } from "./form";
-
-export {
-    getReviewScoringRules,
-    getReviewConfig,
-    getReviewSubmissions,
-    invalidateReviewCache,
-    invalidateReviewRulesCache,
-    invalidateReviewConfigCache,
-} from "./review";
 
 export {
     getAdminUsers,

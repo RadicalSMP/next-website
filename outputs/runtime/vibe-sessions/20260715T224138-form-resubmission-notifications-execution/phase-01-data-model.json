@@ -1,0 +1,36 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "phase": "wave-01-data-model",
+  "status": "completed",
+  "timestamp": "2026-07-15T22:41:38+08:00",
+  "outputs": [
+    "form_submission_revisions 不可变修订表",
+    "submission_revision_requests 补交请求表",
+    "submission_access_tokens 匿名授权表",
+    "submission_notifications 幂等投递表",
+    "form_submissions 当前修订投影字段",
+    "submission_grades 和 submission_events 修订关联",
+    "通知事件与内容公共配置",
+    "初始提交事务写入 revision 1",
+    "登录与匿名两类补交回归夹具"
+  ],
+  "verification": [
+    "bun run migrate:forms 通过",
+    "bun run seed:join-form 通过",
+    "bun run seed:test-form-resubmission 通过",
+    "夹具包含 1 条登录提交、1 条匿名提交、2 个 revision 和 4 条评分记录",
+    "HTTP 初始提交成功并生成 revision 1",
+    "主提交 data/field_snapshot 与 revision 1 一致",
+    "重复修订号被 23505 拒绝",
+    "重复开放补交请求被 23505 拒绝",
+    "重复通知幂等键被 23505 拒绝",
+    "非法令牌 scope 被 23514 拒绝",
+    "bun run lint 通过",
+    "bunx tsc --noEmit 通过",
+    "bun run build 通过"
+  ],
+  "notes": [
+    "开发服务器迁移前缓存了旧表单 ID，真实验证改用数据库新 ID；完整 E2E 前需重启开发服务器",
+    "旧通知配置缺失 events 时采用全关的保守兼容默认，避免隐藏 autoSend 配置误发邮件"
+  ]
+}

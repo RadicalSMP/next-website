@@ -1,0 +1,14 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "stage": "skeleton_check",
+  "status": "completed",
+  "timestamp": "2026-07-15T22:41:38+08:00",
+  "workspace": "C:\\rsmp_projects\\next-website",
+  "branch": "refactor/form",
+  "baseline": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed outside sandbox after sandbox spawn EPERM",
+    "migration": "deferred until wave 1 schema was ready to avoid duplicate destructive rebuild"
+  }
+}

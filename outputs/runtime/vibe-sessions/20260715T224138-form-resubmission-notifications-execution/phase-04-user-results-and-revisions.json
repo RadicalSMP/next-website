@@ -1,0 +1,43 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "phase": "wave-04-user-results-and-revisions",
+  "status": "completed",
+  "timestamp": "2026-07-16T21:28:29+08:00",
+  "outputs": [
+    "登录用户我的提交列表、状态筛选和分页",
+    "账号所有者与匿名令牌用户的脱敏结果详情 API",
+    "匿名 URL 令牌兑换、HttpOnly Cookie 轮换和无令牌重定向",
+    "全部字段与指定字段补交编辑器",
+    "共享 FormResponseFields 填写控件",
+    "补交变更摘要和确认 Dialog",
+    "用户可见评分、处理备注和修订时间线",
+    "动态会话、路由参数和错误页的 Suspense 边界",
+    "提交结果、补交回答和访问错误页 metadata"
+  ],
+  "verification": [
+    "登录用户列表显示处理、批改和补交状态",
+    "登录用户指定字段补交只允许修改主观题",
+    "登录用户补交生成 revision 2 并保留 revision 1",
+    "匿名令牌兑换后 URL 不再包含 token",
+    "匿名 Cookie 刷新后继续授权查看且补交完成后 canRevise=false",
+    "匿名指定字段补交只允许修改客观题",
+    "匿名补交后客观题由 5 分重新计算为 0 分",
+    "已消费测试令牌重放被拒绝",
+    "用户 DTO 未包含 result_config、expected_answer、rule_snapshot、IP、UA、fingerprint 或 account_email",
+    "非法 submission UUID 返回 400 中文错误",
+    "桌面与 390x844 页面无横向溢出",
+    "移动端补交确认 Dialog 无重叠",
+    "最终浏览器控制台 0 error、0 warning",
+    "bun run seed:test-form-resubmission 通过",
+    "bun run verify:form-revisions 通过",
+    "bun run lint 通过",
+    "bunx tsc --noEmit 通过",
+    "bun run build 通过",
+    "git diff --check 通过"
+  ],
+  "notes": [
+    "测试期间使用独立登录和匿名状态验证授权隔离，所有 Chrome 测试窗口已关闭",
+    "令牌过期测试改用应用时钟生成边界，避免远程 PostgreSQL 与本机秒级时钟偏差造成偶发失败",
+    "测试夹具最终已重新生成，未保留浏览器补交产生的临时令牌"
+  ]
+}

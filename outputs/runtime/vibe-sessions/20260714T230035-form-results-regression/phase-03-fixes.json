@@ -1,0 +1,23 @@
+{
+  "runId": "20260714T230035-form-results-regression",
+  "phase": "test-discovered-fixes",
+  "status": "completed",
+  "fixes": [
+    {
+      "area": "表单发布",
+      "problem": "使用 pool.query 包裹事务，无法保证后续语句使用同一数据库连接。",
+      "resolution": "改为专用 client 事务，并使用 SELECT FOR UPDATE 锁定待发布表单。"
+    },
+    {
+      "area": "破坏性迁移",
+      "problem": "事务中的索引创建仍使用 pool.query，导致脚本连接互相等待。",
+      "resolution": "全部 DDL 统一使用同一 client；复验迁移成功且无遗留事务。"
+    },
+    {
+      "area": "结果筛选表单",
+      "problem": "搜索框和下拉控件缺少 id/name，Chrome 报告表单字段标识问题。",
+      "resolution": "补齐稳定的 id、name 和 aria-label；复验缺失控件数量为 0。"
+    }
+  ],
+  "operationalNote": "执行破坏性迁移前应停止正在访问表单表的 Next.js 开发服务器，迁移后再重启，以避免 DDL 锁等待和持久缓存残留。"
+}

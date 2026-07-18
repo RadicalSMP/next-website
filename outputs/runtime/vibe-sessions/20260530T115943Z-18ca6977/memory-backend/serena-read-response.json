@@ -1,0 +1,23 @@
+{
+  "ok": false,
+  "status": "deferred_no_project_key",
+  "lane": "serena",
+  "store_path": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills\\memory\\workspace-memory-plane.jsonl",
+  "project_key": null,
+  "project_key_source": null,
+  "item_count": 0,
+  "items": [],
+  "capsule_count": 0,
+  "capsules": [],
+  "suppressed_count": 0,
+  "workspace_memory_plane": {
+    "schema_version": 1,
+    "workspace_root": "C:\\Users\\85472\\.claude\\skills\\vibe",
+    "workspace_sidecar_root": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills",
+    "descriptor_path": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills\\project.json",
+    "workspace_id": "ws:4ee535d75fa0c6eee6eee154",
+    "plane_path": "C:\\Users\\85472\\.claude\\skills\\vibe\\.vibeskills\\memory\\workspace-memory-plane.jsonl"
+  },
+  "driver_mode": "compatibility_shell",
+  "generated_at": "2026-05-30T11:59:54Z"
+}

@@ -1,0 +1,16 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "stage": "execution",
+  "status": "in_progress",
+  "goal": "实现表单补交闭环与批改结果通知。",
+  "requirement": "docs/requirements/2026-07-15-form-resubmission-and-result-notifications.md",
+  "plan": "docs/plans/2026-07-15-form-resubmission-and-result-notifications-execution-plan.md",
+  "branch": "refactor/form",
+  "runtimeGrade": "XL",
+  "commitPolicy": "每个完成波次独立提交后继续",
+  "preservedUnrelatedChanges": [
+    ".serena/project.yml",
+    "AGENTS.md",
+    ".opencode/package-lock.json"
+  ]
+}

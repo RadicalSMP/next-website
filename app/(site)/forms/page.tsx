@@ -1,7 +1,8 @@
 import { getActiveForms } from "@/lib/cache";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Lock, Users } from "lucide-react";
+import { ClipboardList, FileText, Lock, Users } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export const metadata = {
     title: "表单 - RadicalSMP",
@@ -34,31 +35,40 @@ export default async function FormsListPage() {
     };
 
     return (
-        <div className="container max-w-2xl mx-auto py-12 px-4">
-            {/* 页面标题 */}
-            <div className="text-center mb-10">
-                <h1 className="text-4xl font-bold tracking-tight mb-3">表单</h1>
-                <p className="text-muted-foreground text-lg">
-                    查看和填写各类申请表单
-                </p>
+        <div className="container mx-auto max-w-3xl px-4 py-12">
+            <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">表单</h1>
+                    <p className="mt-2 text-muted-foreground">查看和填写已发布表单</p>
+                </div>
+                <Button variant="outline" asChild className="w-full sm:w-auto">
+                    <Link href="/forms/my-submissions">
+                        <ClipboardList />
+                        我的提交
+                    </Link>
+                </Button>
             </div>
 
-            {/* 表单列表 */}
             {forms.length === 0 ? (
-                <div className="text-center py-20">
-                    <FileText className="size-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground text-lg">暂无可用表单</p>
+                <div className="py-20 text-center">
+                    <FileText className="mx-auto mb-4 size-16 text-muted-foreground" />
+                    <p className="text-muted-foreground">暂无可用表单</p>
                 </div>
             ) : (
-                <div className="divide-y">
+                <div className="divide-y rounded-lg border">
                     {forms.map((form) => (
                         <Link
                             key={form.id}
                             href={`/forms/${form.slug}`}
-                            className="block py-5 transition-colors hover:bg-muted/40 -mx-4 px-4 rounded-md"
+                            className="block px-5 py-5 transition-colors hover:bg-muted/40"
                         >
-                            <div className="flex items-center justify-between mb-1">
-                                <h2 className="text-xl font-semibold">{form.title}</h2>
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold">{form.title}</h2>
+                                    {form.description && (
+                                        <p className="mt-1 text-sm text-muted-foreground">{form.description}</p>
+                                    )}
+                                </div>
                                 {visibilityText(form.visibility) && (
                                     <Badge variant="outline" className="gap-1">
                                         {visibilityIcon(form.visibility)}
@@ -66,11 +76,6 @@ export default async function FormsListPage() {
                                     </Badge>
                                 )}
                             </div>
-                            {form.description && (
-                                <p className="text-muted-foreground">
-                                    {form.description}
-                                </p>
-                            )}
                         </Link>
                     ))}
                 </div>
