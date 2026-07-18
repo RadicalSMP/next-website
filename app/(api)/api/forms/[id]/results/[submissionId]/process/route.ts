@@ -154,7 +154,7 @@ export async function POST(
                 };
             }
         }
-        invalidateSubmissionCache();
+        invalidateSubmissionCache({ submissionId });
 
         return NextResponse.json({ processingStatus: nextStatus, notification });
     } catch (error) {

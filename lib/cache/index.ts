@@ -1,4 +1,9 @@
-export { CACHE_TAGS } from "./tags";
+export {
+    CACHE_TAGS,
+    getFormResultRevisionsTag,
+    getFormSubmissionTag,
+    getUserFormSubmissionsTag,
+} from "./tags";
 
 export {
     getPublishedPosts,

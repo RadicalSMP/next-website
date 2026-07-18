@@ -9,7 +9,6 @@ export const CACHE_KEYS = {
     FORM_VERSION_LIST: createCacheKey("cache", "form", "version-list"),
     FORM_SUBMISSION_LIST: createCacheKey("cache", "form", "submission-list"),
     RESULT_LIST: createCacheKey("cache", "form", "result-list"),
-    RESULT_DETAIL: createCacheKey("cache", "form", "result-detail"),
     ADMIN_USER_LIST: createCacheKey("cache", "user", "admin-list"),
     SETTING_ITEM: createCacheKey("cache", "settings", "item"),
     SETTINGS_MASKED: createCacheKey("cache", "settings", "masked"),

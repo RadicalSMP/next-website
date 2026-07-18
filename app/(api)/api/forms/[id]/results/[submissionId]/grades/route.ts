@@ -225,7 +225,7 @@ export async function POST(
                 };
             }
         }
-        invalidateSubmissionCache();
+        invalidateSubmissionCache({ submissionId, includeRevisions: true });
 
         return NextResponse.json({
             revisionId,

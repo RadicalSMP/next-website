@@ -42,7 +42,7 @@ export async function POST(
         manual: true,
         clientRequestId,
     });
-    invalidateSubmissionCache();
+    invalidateSubmissionCache({ submissionId });
 
     if (notification.status === "not_found") {
         return NextResponse.json({ error: notification.error }, { status: 404 });

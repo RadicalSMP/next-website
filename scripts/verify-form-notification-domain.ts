@@ -7,7 +7,7 @@ import {
     sendProcessingChangedNotification,
     sendRevisionRequestNotification,
 } from "../lib/form-notifications";
-import { createRevisionRequest } from "../lib/form-revisions";
+import { createRevisionRequest, submitRevision } from "../lib/form-revisions";
 
 function assert(condition: unknown, message: string): asserts condition {
     if (!condition) throw new Error(message);
@@ -214,6 +214,54 @@ async function main() {
         );
         assert(eventsResult.rows.some((event) => event.action === "failed"), "通知失败事件未写入");
         assert(eventsResult.rows.some((event) => event.action === "sent"), "通知重试成功事件未写入");
+
+        const staleGrading = await sendGradingCompletedNotification({
+            submissionId: fixture.submission_id,
+            formId: fixture.form_id,
+            revisionId: fixture.revision_id,
+            actorId: fixture.actor_id,
+            manual: true,
+            clientRequestId: "stale-revision-notification",
+            transport: async () => {
+                throw new Error("旧修订通知测试失败");
+            },
+        });
+        assert(staleGrading.status === "failed" && staleGrading.notificationId, "旧修订通知夹具创建失败");
+
+        const staleClient = await pool.connect();
+        try {
+            await staleClient.query("BEGIN");
+            const request = await createRevisionRequest(staleClient, {
+                submissionId: fixture.submission_id,
+                formId: fixture.form_id,
+                editScope: "selected",
+                editableFieldKeys: ["objective"],
+                reason: "生成新修订以验证旧通知保护",
+                requestedBy: fixture.actor_id,
+            });
+            await submitRevision(staleClient, {
+                submissionId: fixture.submission_id,
+                formId: fixture.form_id,
+                requestId: request.id,
+                data: { objective: "a" },
+                submittedBy: fixture.actor_id,
+                submittedVia: "account",
+            });
+            await staleClient.query("COMMIT");
+        } catch (error) {
+            await staleClient.query("ROLLBACK");
+            throw error;
+        } finally {
+            staleClient.release();
+        }
+        const staleRetry = await retrySubmissionNotification({
+            submissionId: fixture.submission_id,
+            formId: fixture.form_id,
+            notificationId: staleGrading.notificationId,
+            actorId: fixture.actor_id,
+            transport: successTransport,
+        });
+        assert(staleRetry.status === "skipped", "旧修订的失败通知仍可在补交后重试");
         console.log("表单通知领域服务验证通过");
     } finally {
         await pool.end();

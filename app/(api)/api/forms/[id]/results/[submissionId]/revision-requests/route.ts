@@ -122,7 +122,10 @@ export async function POST(
             error: error instanceof Error ? error.message : "创建补交通知失败",
         };
     }
-    invalidateSubmissionCache();
+    invalidateSubmissionCache({
+        submissionId,
+        userId: submission.user_id,
+    });
     return NextResponse.json({
         request: revisionRequest,
         recipient: {

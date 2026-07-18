@@ -216,7 +216,11 @@ export async function POST(
         client.release();
     }
 
-    invalidateSubmissionCache();
+    invalidateSubmissionCache({
+        submissionId: result.rows[0].id,
+        userId: session?.user?.id,
+        includeRevisions: true,
+    });
 
     return NextResponse.json({ submission: result.rows[0] }, { status: 201 });
 }

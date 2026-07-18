@@ -1,0 +1,43 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "phase": "wave-07-cache-security-regression",
+  "status": "completed",
+  "timestamp": "2026-07-18T14:27:37+08:00",
+  "outputs": [
+    "提交详情、用户提交列表和修订历史参数化缓存标签",
+    "管理员详情与用户详情改为 Next.js Cache Components 参数化缓存",
+    "提交、补交、批改、处理和通知写路径精确失效提交与用户缓存",
+    "全局表单结果缓存失效继续作为兜底",
+    "通知领域验证增加失败令牌撤销、匿名链接兑换和旧修订重试保护"
+  ],
+  "verification": [
+    "管理员处理状态从已通过改为已拒绝后，详情立即更新且无需重启服务",
+    "用户我的提交列表立即显示已拒绝",
+    "用户提交详情立即显示未通过和最新处理备注",
+    "账号横向越权、指定字段越权和重复补交冲突均被拒绝",
+    "匿名令牌篡改、重放、过期、撤销和失败通知令牌撤销验证通过",
+    "匿名邮件链接兑换后 URL 令牌轮换验证通过",
+    "旧修订失败通知在产生新修订后禁止重试",
+    "邮件 HTML 注入转义和默认隐藏正确答案验证通过",
+    "结果中心统计、筛选、修订时间线和两版差异浏览器验证通过",
+    "390x844 和 1440x900 页面 scrollWidth 等于视口宽度",
+    "浏览器控制台 0 error、0 warning",
+    "bun run migrate:forms 通过",
+    "bun run seed:join-form 通过",
+    "bun run seed:test-form-resubmission 通过并恢复干净夹具",
+    "bun run verify:form-revisions 通过",
+    "bun run verify:form-notification-domain 通过",
+    "bun run verify:form-notifications 通过",
+    "bun run lint 通过",
+    "bunx tsc --noEmit 通过",
+    "bun run build 通过",
+    "git diff --check 通过",
+    "数据库 idle in transaction 为 0，等待中的表单锁为 0"
+  ],
+  "notes": [
+    "最终修订领域回归首次运行遇到远端 PostgreSQL 连接意外中断，重新创建夹具后重跑通过",
+    "浏览器测试全程复用 forms-wave7 单个 Chrome 窗口并在完成后关闭",
+    ".playwright-cli 为既有浏览器测试临时目录；未新增暂存内容，也未绕过策略删除",
+    "任务外 .serena/project.yml、AGENTS.md、README.md 和 .opencode/package-lock.json 未修改或暂存"
+  ]
+}

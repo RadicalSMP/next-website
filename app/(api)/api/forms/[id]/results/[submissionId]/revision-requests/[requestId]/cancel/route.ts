@@ -40,7 +40,7 @@ export async function POST(
             cancelledBy: session.user.id,
         });
         await client.query("COMMIT");
-        invalidateSubmissionCache();
+        invalidateSubmissionCache({ submissionId });
         return NextResponse.json({ request: revisionRequest });
     } catch (error) {
         await client.query("ROLLBACK");

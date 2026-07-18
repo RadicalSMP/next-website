@@ -34,7 +34,7 @@ export async function POST(
         notificationId,
         actorId: session.user.id,
     });
-    invalidateSubmissionCache();
+    invalidateSubmissionCache({ submissionId });
 
     if (notification.status === "not_found") {
         return NextResponse.json({ error: notification.error }, { status: 404 });

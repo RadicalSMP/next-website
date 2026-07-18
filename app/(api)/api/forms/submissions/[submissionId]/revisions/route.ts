@@ -84,7 +84,11 @@ export async function POST(
             duration,
         });
         await client.query("COMMIT");
-        invalidateSubmissionCache();
+        invalidateSubmissionCache({
+            submissionId,
+            userId: session?.user.id,
+            includeRevisions: true,
+        });
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
         await client.query("ROLLBACK");

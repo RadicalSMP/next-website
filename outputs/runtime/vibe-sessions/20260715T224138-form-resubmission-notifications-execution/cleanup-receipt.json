@@ -1,0 +1,35 @@
+{
+  "runId": "20260715T224138-form-resubmission-notifications-execution",
+  "stage": "phase_cleanup",
+  "status": "completed",
+  "timestamp": "2026-07-18T14:27:37+08:00",
+  "developmentServer": "stopped",
+  "browserTestPage": "closed",
+  "databaseIdleTransactions": 0,
+  "waitingFormLocks": 0,
+  "temporaryFiles": {
+    "created": [],
+    "removed": [],
+    "status": "preserved_existing_playwright_artifacts"
+  },
+  "nodeAudit": {
+    "status": "clean",
+    "detail": "未发现 forms-wave7 或 next dev 所属 Node、Bun、Chrome 进程，3000 端口已停止监听。"
+  },
+  "testDataRetained": {
+    "formSlugs": [
+      "join-application",
+      "test-form-resubmission"
+    ],
+    "purpose": "保留已发布入服表单和干净的补交回归夹具，便于用户复查。"
+  },
+  "preservedFiles": [
+    ".serena/project.yml",
+    "AGENTS.md",
+    "README.md",
+    ".opencode/package-lock.json",
+    ".playwright-cli/"
+  ],
+  "commitCreated": true,
+  "remainingBlockers": []
+}

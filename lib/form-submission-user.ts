@@ -1,4 +1,11 @@
+import { cacheLife, cacheTag } from "next/cache";
 import { pool } from "@/lib/db";
+import {
+    CACHE_TAGS,
+    getFormResultRevisionsTag,
+    getFormSubmissionTag,
+    getUserFormSubmissionsTag,
+} from "@/lib/cache";
 import { normalizeFormFields } from "@/lib/forms";
 
 export const USER_SUBMISSION_STATUSES = [
@@ -27,6 +34,10 @@ export async function getUserSubmissionList(input: {
     limit: number;
     status: UserSubmissionStatusFilter;
 }) {
+    "use cache";
+    cacheTag(CACHE_TAGS.FORM_SUBMISSIONS, getUserFormSubmissionsTag(input.userId));
+    cacheLife("minutes");
+
     const conditions = ["fs.user_id = $1"];
     const params: unknown[] = [input.userId];
     if (input.status === "graded") {
@@ -77,6 +88,14 @@ export async function getUserSubmissionList(input: {
 }
 
 export async function getUserSubmissionDetail(submissionId: string) {
+    "use cache";
+    cacheTag(
+        CACHE_TAGS.FORM_RESULTS,
+        getFormSubmissionTag(submissionId),
+        getFormResultRevisionsTag(submissionId),
+    );
+    cacheLife("minutes");
+
     const submissionResult = await pool.query(
         `SELECT fs.id, fs.form_id, fs.form_version_id, fs.user_id,
                 fs.data, fs.field_snapshot, fs.status, fs.grading_status,
