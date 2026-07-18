@@ -1,56 +1,100 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun } from "lucide-react"
+import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+type ThemeName = "light" | "dark" | "system"
+
+interface ThemeOption {
+  name: ThemeName
+  label: string
+  icon: LucideIcon
+}
+
+const THEME_OPTIONS: readonly ThemeOption[] = [
+  { name: "light", label: "明亮", icon: Sun },
+  { name: "dark", label: "黑暗", icon: Moon },
+  { name: "system", label: "自动", icon: Monitor },
+]
+
+const BUTTON_STYLES =
+  "relative rounded-full border-border/70 bg-background/85 shadow-sm backdrop-blur-md touch-manipulation transition-[color,background-color,border-color,box-shadow,transform] duration-200 hover:border-foreground/20 hover:bg-accent hover:shadow-md active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100"
+
+function subscribeToHydration() {
+  return () => undefined
+}
+
+function getThemeOption(theme: string | undefined) {
+  return (
+    THEME_OPTIONS.find((option) => option.name === theme) ??
+    THEME_OPTIONS[2]
+  )
+}
+
+export function getNextTheme(theme: string | undefined): ThemeName {
+  const currentIndex = THEME_OPTIONS.indexOf(getThemeOption(theme))
+
+  return THEME_OPTIONS[(currentIndex + 1) % THEME_OPTIONS.length].name
+}
 
 export function ModeToggle() {
-  const { setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
+  const { theme, setTheme } = useTheme()
+  const mounted = React.useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false
+  )
 
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // 避免 SSR/CSR 之间 Radix 生成的 id 不一致导致 hydration mismatch
+  // 挂载前保持按钮尺寸稳定，并避免读取客户端主题造成 hydration mismatch。
   if (!mounted) {
     return (
-      <Button variant="outline" size="icon" disabled>
-        <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-        <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-        <span className="sr-only">Toggle theme</span>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className={BUTTON_STYLES}
+        aria-label="正在加载主题设置"
+        disabled
+      >
+        <Monitor className="size-[1.15rem] opacity-50" aria-hidden="true" />
       </Button>
     )
   }
 
+  const currentTheme = getThemeOption(theme)
+  const nextTheme = getThemeOption(getNextTheme(theme))
+  const ThemeIcon = currentTheme.icon
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
-          <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-          <span className="sr-only">Toggle theme</span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={BUTTON_STYLES}
+          aria-label={`当前为${currentTheme.label}模式，切换至${nextTheme.label}模式`}
+          data-theme={currentTheme.name}
+          onClick={() => setTheme(nextTheme.name)}
+        >
+          <ThemeIcon
+            key={currentTheme.name}
+            className="size-[1.15rem] animate-in fade-in-0 zoom-in-75 duration-200 motion-reduce:animate-none"
+            aria-hidden="true"
+          />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          System
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </TooltipTrigger>
+      <TooltipContent sideOffset={6}>
+        {currentTheme.label}模式
+      </TooltipContent>
+    </Tooltip>
   )
 }
