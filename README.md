@@ -1,66 +1,15 @@
-# Next Website
+# RadicalSMP Website
 
-这是 **根号的离谱服务器**网站 的仓库。
+## 概述
 
-## 技术栈
+这是 [根号的离谱服务器（RadicalSMP）](https://github.com/RadicalSMP) 官网的代码仓库。项目使用全栈Next.js，启用Cache Components，托管于Vercel；组件库使用shadcn/ui；身份验证使用better-auth框架及其admin插件；数据库使用PostgreSQL，托管于Supabase；邮件通知使用Resend绑定自定义域名。Agent协作指南见 [AGENTS.md](./AGENTS.md)。
 
-### 前端
+## Contributors
 
-- **Bun** 包管理器 & Js运行时
-- **Next.js**
-- **Typescript**
-- **TailwindCSS**
-- **shadcn/ui**
+<a href="https://github.com/RadicalSMP/next-website/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=RadicalSMP/next-website&max=300&columns=15" alt="RadicalSMP/next-website contributors"/>
+</a>
 
-
-### 后端
-
-- **Next.js** API 路由
-- **PostgreSQL** 数据库
-
-### 托管
-
-- **Vercel** 托管 Next.js 项目
-- **supabase** 托管 PostgreSQL 数据库
-
-### 身份验证
-
-- **better-auth** 登录逻辑处理
-
-所用插件:
- - [**admin**](https://www.better-auth.com/docs/plugins/admin) 管理员功能
-
-## 本地运行
-
-### 安装依赖
-
-> 确保你已经安装了 bun
-
-```bash
-bun install
-```
-
-### 运行项目
-
-```bash
-bun run dev
-```
-
-## 关于项目
-
-目前需要实现的功能:
-
-* [ ] 页脚展示服务器版权信息、社交链接
-* [ ] 增加用于切换页面的navbar
-* [ ] 首页展示服务器风采、服务器状态及服务器最新的博客
-* [ ] 冥人唐功能
-* [ ] 关于页
-* [ ] 注册&登录逻辑，使用**账号密码**
-* [ ] 账号管理
-* [ ] 博客编辑&发布&展示
-
-......等待补充完善
-
-## 许可协议
+## 开源协议
 
 [Apache-2.0 license](./LICENSE)
