@@ -13,6 +13,7 @@ import {
     normalizeResultConfig,
     validateSubmissionValues,
 } from "@/lib/forms";
+import { verifyCapToken } from "@/lib/cap";
 
 async function requireAdmin() {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -49,6 +50,19 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> },
 ) {
     const { id } = await params;
+    const body = await request.json().catch(() => null) as unknown;
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return NextResponse.json({ error: "请求数据格式无效" }, { status: 400 });
+    }
+
+    const payload = body as Record<string, unknown>;
+    const capVerification = await verifyCapToken(payload.captchaToken);
+    if (!capVerification.success) {
+        return NextResponse.json(
+            { error: capVerification.message },
+            { status: capVerification.unavailable ? 503 : 400 },
+        );
+    }
 
     const formResult = await pool.query(
         `SELECT f.id, f.visibility, f.allowed_user_ids, f.status,
@@ -79,8 +93,7 @@ export async function POST(
         }
     }
 
-    const body = await request.json();
-    const data = body.data;
+    const data = payload.data;
     if (!data || typeof data !== "object" || Array.isArray(data)) {
         return NextResponse.json({ error: "提交数据不能为空" }, { status: 400 });
     }
@@ -98,8 +111,8 @@ export async function POST(
         reqHeaders.get("x-real-ip") ||
         null;
     const userAgent = reqHeaders.get("user-agent") || null;
-    const fingerprint = typeof body.fingerprint === "string" ? body.fingerprint : null;
-    const duration = typeof body.duration === "number" ? Math.round(body.duration) : null;
+    const fingerprint = typeof payload.fingerprint === "string" ? payload.fingerprint : null;
+    const duration = typeof payload.duration === "number" ? Math.round(payload.duration) : null;
 
     const client = await pool.connect();
     let result: QueryResult<{ id: string }>;

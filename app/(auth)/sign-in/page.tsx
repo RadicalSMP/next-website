@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { signIn } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -13,12 +13,15 @@ import { translateErrorMessage } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth-shell";
+import { CapWidget, type CapWidgetHandle } from "@/components/cap-widget";
 
 export default function SignIn() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const capWidgetRef = useRef<CapWidgetHandle>(null);
     const router = useRouter();
 
     const getSafeCallbackUrl = () => {
@@ -73,16 +76,18 @@ export default function SignIn() {
                             />
                             <Label htmlFor="remember">记住我</Label>
                         </div>
+                        <CapWidget ref={capWidgetRef} onTokenChange={setCaptchaToken} />
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={loading}
+                            disabled={loading || !captchaToken}
                             onClick={async () => {
                                 await signIn.email({
                                     email,
                                     password,
                                     rememberMe,
                                     fetchOptions: {
+                                        body: { captchaToken },
                                         onRequest: () => {
                                             setLoading(true);
                                         },
@@ -90,6 +95,7 @@ export default function SignIn() {
                                             setLoading(false);
                                         },
                                         onError: (ctx) => {
+                                            capWidgetRef.current?.reset();
                                             if (ctx.error.message === "Email not verified") {
                                                 toast.error("邮箱未验证", {
                                                     description: "请查看邮箱中的验证链接",

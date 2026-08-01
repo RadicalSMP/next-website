@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { buildSubmissionDefaults, type FormField } from "@/lib/forms";
+import { CapWidget, type CapWidgetHandle } from "@/components/cap-widget";
 
 type FormData = {
     id: string;
@@ -62,10 +63,12 @@ export function FormFillClient({
 }: FormFillClientProps) {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const [values, setValues] = useState<Record<string, unknown>>(() => (
         initialForm ? buildSubmissionDefaults(initialForm.fields) : {}
     ));
     const startTimeRef = useRef(Date.now());
+    const capWidgetRef = useRef<CapWidgetHandle>(null);
 
     const updateValue = (key: string, value: unknown) => {
         setValues((prev) => ({ ...prev, [key]: value }));
@@ -75,7 +78,7 @@ export function FormFillClient({
     const successMessage = useMemo(() => initialForm?.settings?.successMessage || "提交成功，感谢你的填写。", [initialForm]);
 
     const handleSubmit = async () => {
-        if (!initialForm || mode === "preview") return;
+        if (!initialForm || mode === "preview" || !captchaToken) return;
 
         setSubmitting(true);
         try {
@@ -87,16 +90,19 @@ export function FormFillClient({
                     data: values,
                     fingerprint: generateFingerprint(),
                     duration,
+                    captchaToken,
                 }),
             });
             const data = await res.json();
             if (!res.ok) {
+                capWidgetRef.current?.reset();
                 toast.error(data.error || "提交失败");
                 return;
             }
             setSubmitted(true);
             toast.success("提交成功");
         } catch {
+            capWidgetRef.current?.reset();
             toast.error("提交失败，请稍后重试");
         } finally {
             setSubmitting(false);
@@ -155,11 +161,14 @@ export function FormFillClient({
                     onValueChange={updateValue}
                     idPrefix="form-field"
                 />
+                {mode === "submit" && (
+                    <CapWidget ref={capWidgetRef} onTokenChange={setCaptchaToken} />
+                )}
                 <div className="pt-2">
                     <Button
                         className="w-full"
                         size="lg"
-                        disabled={submitting || mode === "preview"}
+                        disabled={submitting || mode === "preview" || !captchaToken}
                         onClick={handleSubmit}
                     >
                         {submitting ? <Loader2 className="size-4 animate-spin" /> : mode === "preview" ? previewLabel : submitLabel}

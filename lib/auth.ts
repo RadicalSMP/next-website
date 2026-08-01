@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { admin } from "better-auth/plugins"
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 import { invalidateInvitationCodeCache } from "@/lib/cache";
+import { verifyCapToken } from "@/lib/cap";
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -83,6 +84,18 @@ export const auth = betterAuth({
     },
     hooks: {
         before: createAuthMiddleware(async (ctx) => {
+            if (ctx.path === "/sign-in/email" || ctx.path === "/sign-up/email") {
+                const captchaToken = (ctx.body as Record<string, unknown>)?.captchaToken;
+                const verification = await verifyCapToken(captchaToken);
+
+                if (!verification.success) {
+                    throw new APIError(
+                        verification.unavailable ? "SERVICE_UNAVAILABLE" : "BAD_REQUEST",
+                        { message: verification.message },
+                    );
+                }
+            }
+
             if (ctx.path !== "/sign-up/email") {
                 return;
             }

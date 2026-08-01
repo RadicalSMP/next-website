@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { useState, useMemo, useSyncExternalStore } from "react";
+import { useState, useMemo, useRef, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { Loader2, X, Check, Circle, TicketCheck } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
@@ -20,6 +20,7 @@ import { translateErrorMessage } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { RiArrowRightUpBoxLine } from "react-icons/ri";
 import { AuthShell } from "@/components/auth-shell";
+import { CapWidget, type CapWidgetHandle } from "@/components/cap-widget";
 
 /** 密码强度规则 */
 const PASSWORD_RULES = [
@@ -88,6 +89,8 @@ export default function SignUp() {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const capWidgetRef = useRef<CapWidgetHandle>(null);
 
     const locationSearch = useSyncExternalStore(
         subscribeToLocationChange,
@@ -279,10 +282,11 @@ export default function SignUp() {
                                 disabled={Boolean(lockedFields.invitationCode)}
                             />
                         </div>
+                        <CapWidget ref={capWidgetRef} onTokenChange={setCaptchaToken} />
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={loading || !isPasswordValid || password !== passwordConfirmation || !effectiveInvitationCode.trim()}
+                            disabled={loading || !captchaToken || !isPasswordValid || password !== passwordConfirmation || !effectiveInvitationCode.trim()}
                             onClick={async () => {
                                 if (!isPasswordValid) {
                                     toast.error("密码不满足强度要求");
@@ -301,6 +305,7 @@ export default function SignUp() {
                                     fetchOptions: {
                                         body: {
                                             invitationCode: effectiveInvitationCode.trim(),
+                                            captchaToken,
                                         },
                                         onResponse: () => {
                                             setLoading(false);
@@ -309,6 +314,7 @@ export default function SignUp() {
                                             setLoading(true);
                                         },
                                         onError: (ctx) => {
+                                            capWidgetRef.current?.reset();
                                             toast.error(translateErrorMessage(ctx.error.message));
                                         },
                                         onSuccess: () => {

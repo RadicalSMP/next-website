@@ -10,6 +10,7 @@ import {
 } from "@/lib/form-submission-access";
 import { FormRevisionError, submitRevision } from "@/lib/form-revisions";
 import { getUserSubmissionDetail, isFormSubmissionId } from "@/lib/form-submission-user";
+import { verifyCapToken } from "@/lib/cap";
 
 export async function POST(
     request: NextRequest,
@@ -52,6 +53,14 @@ export async function POST(
         return NextResponse.json({ error: "请求数据格式无效" }, { status: 400 });
     }
     const payload = body as Record<string, unknown>;
+    const capVerification = await verifyCapToken(payload.captchaToken);
+    if (!capVerification.success) {
+        return NextResponse.json(
+            { error: capVerification.message },
+            { status: capVerification.unavailable ? 503 : 400 },
+        );
+    }
+
     const data = payload.data;
     if (!data || typeof data !== "object" || Array.isArray(data)) {
         return NextResponse.json({ error: "补交数据不能为空" }, { status: 400 });

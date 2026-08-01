@@ -17,6 +17,7 @@ import {
     ShieldAlert,
 } from "lucide-react";
 import { FormResponseFields } from "@/components/forms/form-response-fields";
+import { CapWidget, type CapWidgetHandle } from "@/components/cap-widget";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -499,7 +500,9 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
     const [submitting, setSubmitting] = useState(false);
     const [normalizedData, setNormalizedData] = useState<Record<string, unknown> | null>(null);
     const [localError, setLocalError] = useState<string | null>(null);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const startTimeRef = useRef(Date.now());
+    const capWidgetRef = useRef<CapWidgetHandle>(null);
     const request = detail.activeRequest;
     const unavailableReason = getRevisionUnavailableReason(detail, localError);
     const editableFields = useMemo(() => {
@@ -537,7 +540,7 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
     };
 
     const submitRevision = async () => {
-        if (!normalizedData || unavailableReason) return;
+        if (!normalizedData || unavailableReason || !captchaToken) return;
         setSubmitting(true);
         try {
             const duration = Math.max(0, Math.round((Date.now() - startTimeRef.current) / 1000));
@@ -548,10 +551,12 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
                     data: normalizedData,
                     fingerprint: generateFingerprint(),
                     duration,
+                    captchaToken,
                 }),
             });
             const payload = await response.json().catch(() => ({})) as { error?: string };
             if (!response.ok) {
+                capWidgetRef.current?.reset();
                 let message = payload.error || "补交失败，请稍后重试";
                 if (response.status === 401) message = "登录状态或访问授权已失效";
                 if (response.status === 403) message = "当前账户或访问链接没有补交权限";
@@ -569,6 +574,7 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
             router.push(`/forms/submissions/${detail.submission.id}`);
             router.refresh();
         } catch {
+            capWidgetRef.current?.reset();
             toast.error("网络异常，补交未提交");
         } finally {
             setSubmitting(false);
@@ -650,7 +656,10 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
             )}
 
             <Dialog open={confirmOpen} onOpenChange={(open) => {
-                if (!submitting) setConfirmOpen(open);
+                if (!submitting) {
+                    setConfirmOpen(open);
+                    if (!open) capWidgetRef.current?.reset();
+                }
             }}>
                 <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
@@ -674,9 +683,10 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
                             </div>
                         ))}
                     </div>
+                    <CapWidget ref={capWidgetRef} onTokenChange={setCaptchaToken} />
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting}>返回修改</Button>
-                        <Button onClick={submitRevision} disabled={submitting}>
+                        <Button onClick={submitRevision} disabled={submitting || !captchaToken}>
                             {submitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <FileText aria-hidden="true" />}
                             确认提交
                         </Button>

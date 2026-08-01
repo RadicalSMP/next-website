@@ -223,6 +223,8 @@ next-website/
 | `GITHUB_CLIENT_ID` | GitHub OAuth | 启用 GitHub 登录时必需 |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth | 启用 GitHub 登录时必需 |
 | `RESEND_API_KEY` | 验证、重置和结果通知邮件 | 邮件功能必需 |
+| `CAP_API_URL` | CAP 服务端令牌校验地址 | 可选，缺省为 `https://cap.hami.im/` |
+| `NEXT_PUBLIC_CAP_API_URL` | CAP 浏览器组件和挑战接口地址 | 可选，缺省为 `https://cap.hami.im/` |
 | `ENCRYPTION_KEY` | 64 位 hex 的 AES-256-GCM 密钥 | 保存加密系统设置时必需 |
 | `OPENAI_API_KEY` | AI Key 的环境变量回退 | 可选 |
 | `OPENAI_BASE_URL` | OpenAI 兼容 API 地址 | 可选 |
