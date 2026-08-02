@@ -8,6 +8,10 @@ import {
     useRef,
     useState,
 } from "react";
+import {
+    CAPTCHA_DEVELOPMENT_TOKEN,
+    CAPTCHA_DISABLED,
+} from "@/lib/cap-config";
 
 const DEFAULT_CAP_URL = "https://cap.hami.im/";
 
@@ -57,12 +61,22 @@ export const CapWidget = forwardRef<CapWidgetHandle, CapWidgetProps>(function Ca
 
     useImperativeHandle(ref, () => ({
         reset: () => {
+            if (CAPTCHA_DISABLED) {
+                onTokenChange(CAPTCHA_DEVELOPMENT_TOKEN);
+                return;
+            }
+
             widgetRef.current?.reset?.();
             onTokenChange(null);
         },
     }), [onTokenChange]);
 
     useEffect(() => {
+        if (CAPTCHA_DISABLED) {
+            onTokenChange(CAPTCHA_DEVELOPMENT_TOKEN);
+            return;
+        }
+
         const widget = widgetRef.current;
         if (!widget) return;
 
@@ -83,6 +97,10 @@ export const CapWidget = forwardRef<CapWidgetHandle, CapWidgetProps>(function Ca
             widget.removeEventListener("error", handleError);
         };
     }, [onTokenChange]);
+
+    if (CAPTCHA_DISABLED) {
+        return null;
+    }
 
     return (
         <div className="grid gap-2">

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { CAPTCHA_DISABLED } from "@/lib/cap-config";
+
 const DEFAULT_CAP_URL = "https://cap.hami.im/";
 const CAP_TIMEOUT_MS = 5000;
 
@@ -22,6 +24,10 @@ function getCapValidationUrl() {
 }
 
 export async function verifyCapToken(token: unknown): Promise<CapVerificationResult> {
+    if (CAPTCHA_DISABLED) {
+        return { success: true };
+    }
+
     if (typeof token !== "string" || !token.trim()) {
         return {
             success: false,
