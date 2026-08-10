@@ -14,6 +14,7 @@ import {
     validateSubmissionValues,
 } from "@/lib/forms";
 import { verifyCapToken } from "@/lib/cap";
+import { normalizeSubmissionMetadata } from "@/lib/security/input";
 
 async function requireAdmin() {
     const session = await auth.api.getSession({ headers: await headers() });
@@ -102,7 +103,10 @@ export async function POST(
     const resultConfig = normalizeResultConfig(form.result_config, fields);
     const validation = validateSubmissionValues(fields, data as Record<string, unknown>);
     if (!validation.ok) {
-        return NextResponse.json({ error: validation.error }, { status: 400 });
+        return NextResponse.json(
+            { error: validation.error, fieldKey: validation.fieldKey, code: validation.code },
+            { status: 400 },
+        );
     }
     const gradeResult = buildSubmissionGradeResult(fields, validation.value, resultConfig);
 
@@ -111,8 +115,7 @@ export async function POST(
         reqHeaders.get("x-real-ip") ||
         null;
     const userAgent = reqHeaders.get("user-agent") || null;
-    const fingerprint = typeof payload.fingerprint === "string" ? payload.fingerprint : null;
-    const duration = typeof payload.duration === "number" ? Math.round(payload.duration) : null;
+    const { fingerprint, duration } = normalizeSubmissionMetadata(payload);
 
     const client = await pool.connect();
     let result: QueryResult<{ id: string }>;

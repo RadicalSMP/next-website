@@ -88,13 +88,14 @@ export async function setSetting(
     value: string,
     encrypted: boolean = false,
 ): Promise<void> {
-    const storedValue = encrypted ? encrypt(value) : value;
+    const shouldEncrypt = key === "ai.api_key" || encrypted;
+    const storedValue = shouldEncrypt ? encrypt(value) : value;
     await pool.query(
         `INSERT INTO system_settings (key, value, encrypted, updated_at)
          VALUES ($1, $2, $3, NOW())
          ON CONFLICT (key) DO UPDATE
          SET value = $2, encrypted = $3, updated_at = NOW()`,
-        [key, storedValue, encrypted],
+        [key, storedValue, shouldEncrypt],
     );
 }
 

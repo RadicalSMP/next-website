@@ -1,3 +1,5 @@
+import safeRegex from "safe-regex2";
+
 export type FormVisibility = "public" | "authenticated" | "members";
 export type FormStatus = "draft" | "published" | "archived";
 
@@ -323,6 +325,24 @@ const NOTIFICATION_TEMPLATES: Exclude<ResultNotificationTemplate, null>[] = [
     "score_result",
     "generic_result",
 ];
+
+const MAX_FORM_FIELDS = 100;
+const MAX_FIELD_OPTIONS = 200;
+const MAX_PATTERN_LENGTH = 256;
+const MAX_FIELD_KEY_LENGTH = 100;
+const MAX_FIELD_LABEL_LENGTH = 200;
+const MAX_OPTION_TEXT_LENGTH = 512;
+const MAX_CHECKBOX_VALUES = 200;
+const HARD_STRING_LIMITS: Partial<Record<FormFieldType, number>> = {
+    text: 4_096,
+    textarea: 50_000,
+    radio: 512,
+    select: 512,
+    date: 10,
+    email: 320,
+    qq: 20,
+    mcid: 16,
+};
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -981,6 +1001,9 @@ export function validateFormVersionPayload(raw: unknown) {
     if (fields.length === 0) {
         return { ok: false as const, error: "至少需要一个字段" };
     }
+    if (fields.length > MAX_FORM_FIELDS) {
+        return { ok: false as const, error: `字段数量不能超过 ${MAX_FORM_FIELDS} 个` };
+    }
     if (fields.some((field) => !field.label.trim())) {
         return { ok: false as const, error: "字段标题不能为空" };
     }
@@ -992,9 +1015,22 @@ export function validateFormVersionPayload(raw: unknown) {
     }
 
     for (const field of fields) {
+        if (field.key.length > MAX_FIELD_KEY_LENGTH || field.label.length > MAX_FIELD_LABEL_LENGTH) {
+            return { ok: false as const, error: `字段「${field.label}」的 key 或标题过长` };
+        }
+        if ((field.options ?? []).length > MAX_FIELD_OPTIONS) {
+            return { ok: false as const, error: `字段「${field.label}」的选项不能超过 ${MAX_FIELD_OPTIONS} 个` };
+        }
+        if ((field.options ?? []).some((option) => (
+            option.label.length > MAX_OPTION_TEXT_LENGTH || option.value.length > MAX_OPTION_TEXT_LENGTH
+        ))) {
+            return { ok: false as const, error: `字段「${field.label}」包含过长选项` };
+        }
         if (["radio", "checkbox", "select"].includes(field.type) && (field.options ?? []).length === 0) {
             return { ok: false as const, error: `字段「${field.label}」需要至少一个选项` };
         }
+        const validation = validateFieldRulesForPublish(field);
+        if (!validation.ok) return validation;
     }
 
     const settings = isRecord(raw.settings) ? raw.settings : {};
@@ -1158,8 +1194,58 @@ export function buildSubmissionDefaults(fields: FormField[]) {
     return values;
 }
 
+function validateFieldRulesForPublish(field: FormField) {
+    const validation = field.validation ?? {};
+    const hardLimit = HARD_STRING_LIMITS[field.type];
+    if (validation.min !== undefined && validation.max !== undefined && validation.min > validation.max) {
+        return { ok: false as const, error: `字段「${field.label}」的最小值不能大于最大值` };
+    }
+    for (const [name, value] of [
+        ["最小长度", validation.minLength],
+        ["最大长度", validation.maxLength],
+    ] as const) {
+        if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+            return { ok: false as const, error: `字段「${field.label}」的${name}无效` };
+        }
+    }
+    if (
+        validation.minLength !== undefined &&
+        validation.maxLength !== undefined &&
+        validation.minLength > validation.maxLength
+    ) {
+        return { ok: false as const, error: `字段「${field.label}」的最小长度不能大于最大长度` };
+    }
+    if (hardLimit !== undefined && validation.maxLength !== undefined && validation.maxLength > hardLimit) {
+        return { ok: false as const, error: `字段「${field.label}」的最大长度不能超过 ${hardLimit}` };
+    }
+
+    const pattern = validation.pattern;
+    if (pattern) {
+        if (pattern.length > MAX_PATTERN_LENGTH) {
+            return { ok: false as const, error: `字段「${field.label}」的正则表达式过长` };
+        }
+        try {
+            new RegExp(pattern);
+        } catch {
+            return { ok: false as const, error: `字段「${field.label}」的正则表达式无效` };
+        }
+        if (!safeRegex(pattern)) {
+            return { ok: false as const, error: `字段「${field.label}」的正则表达式存在性能风险` };
+        }
+    }
+
+    return { ok: true as const };
+}
+
 export function validateSubmissionValues(fields: FormField[], data: Record<string, unknown>) {
     const normalized: Record<string, string | number | boolean | string[] | null> = {};
+
+    const failure = (field: FormField, code: string, message: string) => ({
+        ok: false as const,
+        error: `「${field.label}」${message}`,
+        fieldKey: field.key,
+        code,
+    });
 
     for (const field of fields.filter((item) => item.enabled)) {
         const value = data[field.key];
@@ -1167,14 +1253,14 @@ export function validateSubmissionValues(fields: FormField[], data: Record<strin
         if (field.required) {
             if (field.type === "checkbox") {
                 if (!Array.isArray(value) || value.length === 0) {
-                    return { ok: false as const, error: `「${field.label}」为必填项` };
+                    return failure(field, "required", "为必填项");
                 }
             } else if (field.type === "toggle") {
                 if (value !== true) {
-                    return { ok: false as const, error: `「${field.label}」为必填项` };
+                    return failure(field, "required", "为必填项");
                 }
             } else if (value === undefined || value === null || String(value).trim() === "") {
-                return { ok: false as const, error: `「${field.label}」为必填项` };
+                return failure(field, "required", "为必填项");
             }
         }
 
@@ -1191,34 +1277,69 @@ export function validateSubmissionValues(fields: FormField[], data: Record<strin
             case "number": {
                 const parsed = typeof value === "number" ? value : Number(value);
                 if (!Number.isFinite(parsed)) {
-                    return { ok: false as const, error: `「${field.label}」必须是数字` };
+                    return failure(field, "invalid_number", "必须是数字");
+                }
+                if (Math.abs(parsed) > Number.MAX_SAFE_INTEGER) {
+                    return failure(field, "number_out_of_range", "超出安全数值范围");
+                }
+                if (field.validation?.min !== undefined && parsed < field.validation.min) {
+                    return failure(field, "number_too_small", `不能小于 ${field.validation.min}`);
+                }
+                if (field.validation?.max !== undefined && parsed > field.validation.max) {
+                    return failure(field, "number_too_large", `不能大于 ${field.validation.max}`);
                 }
                 normalized[field.key] = parsed;
                 break;
             }
             case "checkbox": {
-                const rawValues = Array.isArray(value) ? value.map(String) : [String(value)];
+                if (!Array.isArray(value) || value.length > MAX_CHECKBOX_VALUES) {
+                    return failure(field, "invalid_checkbox", "的取值无效");
+                }
+                if (value.some((item) => typeof item !== "string" || item.length > MAX_OPTION_TEXT_LENGTH)) {
+                    return failure(field, "invalid_checkbox", "的取值无效");
+                }
+                const rawValues = value as string[];
+                if (
+                    field.validation?.minLength !== undefined &&
+                    rawValues.length < field.validation.minLength
+                ) {
+                    return failure(field, "selection_too_small", `至少需要选择 ${field.validation.minLength} 项`);
+                }
+                if (
+                    field.validation?.maxLength !== undefined &&
+                    rawValues.length > field.validation.maxLength
+                ) {
+                    return failure(field, "selection_too_large", `最多只能选择 ${field.validation.maxLength} 项`);
+                }
                 const allowedValues = (field.options ?? []).map((option) => option.value);
                 if (
                     allowedValues.length > 0 &&
                     rawValues.some((item) => !allowedValues.includes(item))
                 ) {
-                    return { ok: false as const, error: `「${field.label}」的取值无效` };
+                    return failure(field, "invalid_option", "的取值无效");
                 }
                 normalized[field.key] = rawValues;
                 break;
             }
             case "toggle":
-                normalized[field.key] = Boolean(value);
+                if (typeof value !== "boolean") {
+                    return failure(field, "invalid_boolean", "必须是布尔值");
+                }
+                normalized[field.key] = value;
                 break;
             case "radio":
             case "select": {
-                const rawValue = String(value);
+                if (typeof value !== "string") {
+                    return failure(field, "invalid_string", "必须是字符串");
+                }
+                const rawValue = value;
                 const allowedValues = (field.options ?? []).map((option) => option.value);
                 if (allowedValues.length > 0 && !allowedValues.includes(rawValue)) {
-                    return { ok: false as const, error: `「${field.label}」的取值无效` };
+                    return failure(field, "invalid_option", "的取值无效");
                 }
-                normalized[field.key] = rawValue;
+                const stringValidation = validateStringSubmission(field, rawValue, failure);
+                if (!stringValidation.ok) return stringValidation;
+                normalized[field.key] = stringValidation.value;
                 break;
             }
             case "date":
@@ -1228,12 +1349,70 @@ export function validateSubmissionValues(fields: FormField[], data: Record<strin
             case "text":
             case "textarea":
             default:
-                normalized[field.key] = String(value);
+                if (typeof value !== "string") {
+                    return failure(field, "invalid_string", "必须是字符串");
+                }
+                const stringValidation = validateStringSubmission(field, value, failure);
+                if (!stringValidation.ok) return stringValidation;
+                normalized[field.key] = stringValidation.value;
                 break;
         }
     }
 
     return { ok: true as const, value: normalized };
+}
+
+function validateStringSubmission(
+    field: FormField,
+    value: string,
+    failure: (field: FormField, code: string, message: string) => {
+        ok: false;
+        error: string;
+        fieldKey: string;
+        code: string;
+    },
+) {
+    const hardLimit = HARD_STRING_LIMITS[field.type] ?? 4_096;
+    if (value.length > hardLimit) return failure(field, "value_too_long", `不能超过 ${hardLimit} 个字符`);
+    if (field.validation?.minLength !== undefined && value.length < field.validation.minLength) {
+        return failure(field, "value_too_short", `不能少于 ${field.validation.minLength} 个字符`);
+    }
+    if (field.validation?.maxLength !== undefined && value.length > field.validation.maxLength) {
+        return failure(field, "value_too_long", `不能超过 ${field.validation.maxLength} 个字符`);
+    }
+
+    const pattern = field.validation?.pattern;
+    if (pattern) {
+        if (pattern.length > MAX_PATTERN_LENGTH || !safeRegex(pattern)) {
+            return failure(field, "unsafe_pattern", "的校验规则存在安全风险");
+        }
+        try {
+            if (!new RegExp(pattern).test(value)) {
+                return failure(field, "pattern_mismatch", "格式不正确");
+            }
+        } catch {
+            return failure(field, "invalid_pattern", "的校验规则无效");
+        }
+    }
+
+    if (field.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        return failure(field, "invalid_email", "必须是有效邮箱地址");
+    }
+    if (field.type === "qq" && !/^[1-9]\d{4,11}$/.test(value)) {
+        return failure(field, "invalid_qq", "必须是 5-12 位 QQ 号");
+    }
+    if (field.type === "mcid" && !/^[A-Za-z0-9_]{3,16}$/.test(value)) {
+        return failure(field, "invalid_mcid", "必须是 3-16 位 Minecraft ID");
+    }
+    if (field.type === "date") {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+        const parsed = match ? new Date(`${value}T00:00:00.000Z`) : null;
+        if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+            return failure(field, "invalid_date", "必须是有效日期");
+        }
+    }
+
+    return { ok: true as const, value };
 }
 
 export function csvEscape(value: unknown) {

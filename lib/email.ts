@@ -26,7 +26,7 @@ export type GradingEmailItem = {
     correctAnswer?: unknown;
 };
 
-function escapeHtml(value: string) {
+export function escapeHtml(value: string) {
     return value
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -238,26 +238,37 @@ export async function sendPasswordResetEmail(params: {
     resetUrl: string;
     userName?: string;
 }) {
-    const { to, resetUrl, userName } = params;
-    const greeting = userName ? `${userName}，你好！` : "你好！";
+    const { to } = params;
+    const content = buildPasswordResetEmail(params);
 
     await getResend().emails.send({
         from: FROM,
         to,
+        ...content,
+    });
+}
+
+export function buildPasswordResetEmail(params: {
+    resetUrl: string;
+    userName?: string;
+}) {
+    const greeting = params.userName ? `${escapeHtml(params.userName)}，你好！` : "你好！";
+    const safeUrl = escapeHtml(params.resetUrl);
+    return {
         subject: "重置您的密码 - RadicalSMP",
         html: `
             <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
                 <h2>重置密码</h2>
                 <p>${greeting}</p>
                 <p>我们收到了重置您账户密码的请求。请点击下方按钮重置密码：</p>
-                <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #171717; color: #fff; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+                <a href="${safeUrl}" style="display: inline-block; padding: 12px 24px; background: #171717; color: #fff; text-decoration: none; border-radius: 6px; margin: 16px 0;">
                     重置密码
                 </a>
                 <p style="color: #666; font-size: 14px;">如果您没有请求重置密码，请忽略此邮件。</p>
                 <p style="color: #666; font-size: 14px;">此链接将在 1 小时后过期。</p>
             </div>
         `,
-    });
+    };
 }
 
 export async function sendVerificationEmail(params: {
@@ -265,24 +276,35 @@ export async function sendVerificationEmail(params: {
     verifyUrl: string;
     userName?: string;
 }) {
-    const { to, verifyUrl, userName } = params;
-    const greeting = userName ? `${userName}，你好！` : "你好！";
+    const { to } = params;
+    const content = buildVerificationEmail(params);
 
     await getResend().emails.send({
         from: FROM,
         to,
+        ...content,
+    });
+}
+
+export function buildVerificationEmail(params: {
+    verifyUrl: string;
+    userName?: string;
+}) {
+    const greeting = params.userName ? `${escapeHtml(params.userName)}，你好！` : "你好！";
+    const safeUrl = escapeHtml(params.verifyUrl);
+    return {
         subject: "验证您的邮箱 - RadicalSMP",
         html: `
             <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
                 <h2>验证邮箱</h2>
                 <p>${greeting}</p>
                 <p>感谢您注册 RadicalSMP！请点击下方按钮验证您的邮箱地址：</p>
-                <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background: #171717; color: #fff; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+                <a href="${safeUrl}" style="display: inline-block; padding: 12px 24px; background: #171717; color: #fff; text-decoration: none; border-radius: 6px; margin: 16px 0;">
                     验证邮箱
                 </a>
                 <p style="color: #666; font-size: 14px;">如果您没有注册 RadicalSMP，请忽略此邮件。</p>
                 <p style="color: #666; font-size: 14px;">此链接将在 1 小时后过期。</p>
             </div>
         `,
-    });
+    };
 }

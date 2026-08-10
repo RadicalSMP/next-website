@@ -6,6 +6,7 @@ import {
     invalidateInvitationCodeCache,
 } from "@/lib/cache";
 import { pool } from "@/lib/db";
+import { randomInt } from "node:crypto";
 
 /** 校验管理员身份 */
 async function requireAdmin() {
@@ -58,6 +59,29 @@ export async function POST(request: NextRequest) {
             { error: "邀请码长度应在 4-32 个字符之间" },
             { status: 400 },
         );
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(finalCode)) {
+        return NextResponse.json(
+            { error: "邀请码只能包含字母、数字、下划线和连字符" },
+            { status: 400 },
+        );
+    }
+    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 10_000) {
+        return NextResponse.json({ error: "最大使用次数应为 1-10000 的整数" }, { status: 400 });
+    }
+    if (
+        allowedEmails !== null &&
+        (!Array.isArray(allowedEmails) || allowedEmails.length > 1_000 || allowedEmails.some((email) => (
+            typeof email !== "string" || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+        )))
+    ) {
+        return NextResponse.json({ error: "邮箱白名单格式无效或数量过多" }, { status: 400 });
+    }
+    if (expiresAt !== null) {
+        const expiry = new Date(expiresAt);
+        if (Number.isNaN(expiry.getTime()) || expiry.getTime() <= Date.now()) {
+            return NextResponse.json({ error: "过期时间必须晚于当前时间" }, { status: 400 });
+        }
     }
 
     // 检查是否重复
@@ -114,7 +138,7 @@ function generateCode(): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let code = "";
     for (let i = 0; i < 8; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
+        code += chars[randomInt(chars.length)];
     }
     return code;
 }

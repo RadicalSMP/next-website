@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "@/lib/db";
 import type { SubmissionAccessScope } from "@/lib/forms";
+export { isSameOriginMutation } from "@/lib/security/request";
 
 export type SubmissionAccessSource = "none" | "admin" | "account" | "token";
 
@@ -330,9 +331,4 @@ export async function authorizeSubmissionAccess(input: {
         revisionRequestId: null,
         reason: "not_owner",
     };
-}
-
-export function isSameOriginMutation(request: Request) {
-    const origin = request.headers.get("origin");
-    return Boolean(origin && origin === new URL(request.url).origin);
 }

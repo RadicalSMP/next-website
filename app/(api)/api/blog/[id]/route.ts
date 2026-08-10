@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
 import { invalidateBlogCache } from "@/lib/cache";
+import { sanitizeBlogHtml } from "@/lib/security/html";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -37,7 +38,12 @@ export async function GET(
         return NextResponse.json({ error: "文章不存在" }, { status: 404 });
     }
 
-    return NextResponse.json({ post: result.rows[0] });
+    return NextResponse.json({
+        post: {
+            ...result.rows[0],
+            content: sanitizeBlogHtml(result.rows[0].content),
+        },
+    });
 }
 
 // ─── PUT /api/blog/[id] — 更新文章（管理员）──────────────
@@ -64,7 +70,7 @@ export async function PUT(
     let idx = 1;
 
     if (title !== undefined) { fields.push(`title = $${idx++}`); values.push(title.trim()); }
-    if (content !== undefined) { fields.push(`content = $${idx++}`); values.push(content); }
+    if (content !== undefined) { fields.push(`content = $${idx++}`); values.push(sanitizeBlogHtml(content)); }
     if (excerpt !== undefined) { fields.push(`excerpt = $${idx++}`); values.push(excerpt || null); }
     if (cover_image !== undefined) { fields.push(`cover_image = $${idx++}`); values.push(cover_image || null); }
     if (status !== undefined && ["draft", "published"].includes(status)) {

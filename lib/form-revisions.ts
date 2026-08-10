@@ -20,6 +20,7 @@ export class FormRevisionError extends Error {
         message: string,
         public readonly status: 400 | 403 | 404 | 409 | 410,
         public readonly code: string,
+        public readonly fieldKey?: string,
     ) {
         super(message);
         this.name = "FormRevisionError";
@@ -536,7 +537,7 @@ export async function submitRevision(
     }
     const validation = validateSubmissionValues(fields, merged);
     if (!validation.ok) {
-        throw new FormRevisionError(validation.error, 400, "submission_invalid");
+        throw new FormRevisionError(validation.error, 400, validation.code, validation.fieldKey);
     }
 
     const resultConfig = normalizeResultConfig(submission.result_config, fields);

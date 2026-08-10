@@ -11,6 +11,7 @@ import {
 import { FormRevisionError, submitRevision } from "@/lib/form-revisions";
 import { getUserSubmissionDetail, isFormSubmissionId } from "@/lib/form-submission-user";
 import { verifyCapToken } from "@/lib/cap";
+import { normalizeSubmissionMetadata } from "@/lib/security/input";
 
 export async function POST(
     request: NextRequest,
@@ -71,12 +72,7 @@ export async function POST(
         reqHeaders.get("x-real-ip") ||
         null;
     const userAgent = reqHeaders.get("user-agent") || null;
-    const fingerprint = typeof payload.fingerprint === "string"
-        ? payload.fingerprint.slice(0, 256)
-        : null;
-    const duration = typeof payload.duration === "number" && Number.isFinite(payload.duration)
-        ? Math.max(0, Math.round(payload.duration))
-        : null;
+    const { fingerprint, duration } = normalizeSubmissionMetadata(payload);
 
     const client = await pool.connect();
     try {
@@ -102,7 +98,10 @@ export async function POST(
     } catch (error) {
         await client.query("ROLLBACK");
         if (error instanceof FormRevisionError) {
-            return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+            return NextResponse.json(
+                { error: error.message, code: error.code, fieldKey: error.fieldKey },
+                { status: error.status },
+            );
         }
         throw error;
     } finally {

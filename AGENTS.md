@@ -132,8 +132,8 @@ next-website/
 
 ### 主要数据表
 
-- better-auth 管理：`user`、`session`、`account`、`verification` 等认证表。
-- 邀请码：`invitation_code`、`invitation_code_usage`。
+- better-auth 管理：`user`、`session`、`account`、`verification`、`rateLimit` 等认证表。
+- 邀请码：`invitation_code`、`invitation_code_usage`、`invitation_code_reservation`。
 - 博客：`blog_posts`。
 - 表单：`forms`、`form_versions`、`form_submissions`、`submission_grades`、`submission_events`。
 - 系统设置：`system_settings`，代码依赖该表，但仓库当前没有对应迁移脚本。
@@ -145,6 +145,7 @@ next-website/
 - 多表写入、批改、处理等需要原子性的操作必须使用事务，并在 `finally` 中释放连接。
 - 新增或调整表结构时同步维护 `scripts/` 下的迁移脚本和本文档。
 - `scripts/migrate-forms.ts` 会删除并重建全部表单相关表，是破坏性脚本；没有明确授权和备份时不得在共享或生产数据库执行。
+- `scripts/migrate-security.ts` 仅幂等创建邀请码预留和数据库限流基础设施，不删除或改写现有业务数据；仍应先在隔离数据库验证。
 
 ### 缓存规则
 
@@ -239,6 +240,7 @@ next-website/
 ```bash
 bun install
 bun run dev
+bun test
 bun run lint
 bun run build
 bun run start
@@ -249,6 +251,7 @@ bun run start
 ```bash
 bun run seed
 bun run migrate:blog
+bun run migrate:security
 bun run migrate:forms
 bun run seed:join-form
 bun run scripts/migrate-invitation-code.ts
@@ -263,15 +266,14 @@ bun run scripts/migrate-invitation-code.ts
 3. 优先小范围修改，复用现有类型、校验函数、UI 组件和缓存入口。
 4. 修改数据库写路径时核对权限、参数化 SQL、事务和缓存失效。
 5. 至少运行 `bun run lint` 和 `bun run build`；涉及数据库或外部服务时说明未验证的集成边界。
-6. 仓库目前没有测试框架和 `test` 脚本。新增复杂纯逻辑时应补测试基础设施，不能用“构建通过”代替业务验证。
+6. 安全纯逻辑使用 Bun 内置测试；数据库安全用例仅在显式配置隔离的 `TEST_DATABASE_URL` 时执行，不能指向共享或生产数据库。
 
 ## 已知缺口与风险
 
 - `app/(site)/layout.tsx` 的 metadata 仍为 `Create Next App` 默认值，需要替换为 RadicalSMP 品牌信息。
 - 首页多处明确标注为占位内容，“冥人唐”仍有成员资料待填写。
-- 仓库没有自动化测试、测试脚本和 CI 验证配置。
+- 仓库仅有安全相关 Bun 测试，尚未覆盖主要业务流程，也没有 CI 验证配置。
 - `system_settings` 被设置模块依赖，但仓库没有建表迁移脚本。
-- `.env.example` 未覆盖代码实际使用的全部环境变量。
 - `lib/cache/README.md` 的部分缓存策略和示例 API 已经过时。
 - `lib/auth.ts` 与 `lib/db.ts` 各自持有一个 PostgreSQL Pool，需要关注 Serverless 连接数。
 - Resend 发件人地址目前硬编码为 `botamidragen@hami.su`，更换正式域名后需更新。

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getSettingsMaskedCached, invalidateSettingsCache } from "@/lib/cache";
 import { setSetting } from "@/lib/settings";
+import { validateAiSettings } from "@/lib/security/settings";
 
 // ─── 管理员鉴权 ──────────────────────────────────────────
 async function requireAdmin() {
@@ -14,17 +15,18 @@ async function requireAdmin() {
 }
 
 // ─── GET /api/settings — 获取系统设置（敏感值脱敏） ──────
-export async function GET(request: NextRequest) {
+export async function GET() {
     const session = await requireAdmin();
     if (!session) {
         return NextResponse.json({ error: "未授权" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const prefix = searchParams.get("prefix") || "ai.";
-
-    const settings = await getSettingsMaskedCached(prefix);
-    return NextResponse.json({ settings });
+    const settings = await getSettingsMaskedCached("ai.");
+    return NextResponse.json({
+        settings: Object.fromEntries(
+            Object.entries(settings).filter(([key]) => ["ai.api_key", "ai.base_url", "ai.model"].includes(key)),
+        ),
+    });
 }
 
 // ─── PUT /api/settings — 更新系统设置 ────────────────────
@@ -35,31 +37,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { settings } = body as {
-        settings: Record<string, { value: string; encrypted?: boolean }>;
-    };
-
-    if (!settings || typeof settings !== "object") {
-        return NextResponse.json({ error: "参数错误" }, { status: 400 });
+    const validation = validateAiSettings((body as Record<string, unknown>).settings);
+    if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // 只允许特定前缀
-    const allowedPrefixes = ["ai."];
-    for (const key of Object.keys(settings)) {
-        if (!allowedPrefixes.some((p) => key.startsWith(p))) {
-            return NextResponse.json(
-                { error: `不允许修改设置项: ${key}` },
-                { status: 400 },
-            );
-        }
-    }
-
-    for (const [key, config] of Object.entries(settings)) {
-        // 跳过脱敏值（未修改的加密字段）
-        if (config.value.includes("...") && config.encrypted) {
-            continue;
-        }
-        await setSetting(key, config.value, config.encrypted ?? false);
+    for (const config of validation.value) {
+        await setSetting(config.key, config.value, config.encrypted);
     }
 
     invalidateSettingsCache();

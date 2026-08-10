@@ -6,6 +6,14 @@ import { admin } from "better-auth/plugins"
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 import { invalidateInvitationCodeCache } from "@/lib/cache";
 import { verifyCapToken } from "@/lib/cap";
+import {
+    consumeInvitationReservation,
+    deleteUnfinishedAccount,
+    InvitationReservationError,
+    releaseInvitationReservation,
+    reserveInvitationCode,
+} from "@/lib/invitation-reservations";
+import { validateAvatarDataUrl } from "@/lib/security/input";
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -66,7 +74,7 @@ export const auth = betterAuth({
                 max: 3,
             },
         },
-        storage: "memory",
+        storage: "database",
     },
     user: {
         additionalFields: {
@@ -100,51 +108,36 @@ export const auth = betterAuth({
                 return;
             }
 
-            const invitationCode = (ctx.body as Record<string, unknown>)?.invitationCode;
+            const body = ctx.body as Record<string, unknown>;
+            const invitationCode = body?.invitationCode;
             if (!invitationCode || typeof invitationCode !== "string") {
                 throw new APIError("BAD_REQUEST", {
                     message: "请输入邀请码",
                 });
             }
 
-            const result = await pool.query(
-                `SELECT * FROM "invitation_code" WHERE "code" = $1`,
-                [invitationCode],
-            );
-
-            if (result.rows.length === 0) {
-                throw new APIError("BAD_REQUEST", {
-                    message: "邀请码无效",
-                });
+            const email = typeof body.email === "string" ? body.email.trim() : "";
+            if (!email) {
+                throw new APIError("BAD_REQUEST", { message: "请输入有效邮箱" });
             }
 
-            const code = result.rows[0];
-
-            // 检查过期
-            if (code.expiresAt && new Date(code.expiresAt) < new Date()) {
-                throw new APIError("BAD_REQUEST", {
-                    message: "邀请码已过期",
-                });
+            const avatarResult = validateAvatarDataUrl(body.image);
+            if (!avatarResult.ok) {
+                throw new APIError("BAD_REQUEST", { message: avatarResult.error });
             }
 
-            // 检查使用次数
-            if (code.uses >= code.maxUses) {
-                throw new APIError("BAD_REQUEST", {
-                    message: "邀请码已达到最大使用次数",
+            try {
+                const reservationId = await reserveInvitationCode(pool, {
+                    code: invitationCode.trim(),
+                    email,
                 });
-            }
-
-            // 检查邮箱白名单
-            const email = (ctx.body as Record<string, unknown>)?.email as string;
-            if (code.allowedEmails && code.allowedEmails.length > 0) {
-                const allowed = (code.allowedEmails as string[]).some(
-                    (e: string) => e.toLowerCase() === email.toLowerCase(),
-                );
-                if (!allowed) {
-                    throw new APIError("BAD_REQUEST", {
-                        message: "该邀请码不允许此邮箱注册",
-                    });
+                (ctx.context as typeof ctx.context & { invitationReservationId?: string })
+                    .invitationReservationId = reservationId;
+            } catch (error) {
+                if (error instanceof InvitationReservationError) {
+                    throw new APIError("BAD_REQUEST", { message: error.message });
                 }
+                throw error;
             }
         }),
         after: createAuthMiddleware(async (ctx) => {
@@ -152,13 +145,18 @@ export const auth = betterAuth({
                 return;
             }
 
-            // 注册成功后，记录使用并更新计数
-            // ctx.context.returned 是端点返回的普通对象 { token, user }，不是 Response
+            const reservationId = (
+                ctx.context as typeof ctx.context & { invitationReservationId?: string }
+            ).invitationReservationId;
+            if (!reservationId) return;
+
             const returned = ctx.context.returned as
                 | { token: string | null; user?: { id?: string; email?: string } }
+                | APIError
                 | undefined;
 
-            if (!returned || !returned.user) {
+            if (!returned || returned instanceof APIError || !("user" in returned) || !returned.user) {
+                await releaseInvitationReservation(pool, reservationId);
                 return;
             }
 
@@ -166,38 +164,25 @@ export const auth = betterAuth({
             const userEmail = returned.user.email;
 
             if (!userId || !userEmail) {
+                await releaseInvitationReservation(pool, reservationId);
                 return;
             }
 
-            const invitationCode = (ctx.body as Record<string, unknown>)?.invitationCode as string;
-            if (!invitationCode) {
-                return;
+            try {
+                await consumeInvitationReservation(pool, {
+                    reservationId,
+                    userId,
+                    email: userEmail,
+                });
+                invalidateInvitationCodeCache();
+            } catch (error) {
+                await deleteUnfinishedAccount(pool, userId);
+                await releaseInvitationReservation(pool, reservationId).catch(() => undefined);
+                console.error("邀请码最终化失败，已补偿删除未完成账户", error);
+                throw new APIError("INTERNAL_SERVER_ERROR", {
+                    message: "注册未能安全完成，请稍后重试",
+                });
             }
-
-            // 获取邀请码 ID
-            const codeResult = await pool.query(
-                `SELECT "id" FROM "invitation_code" WHERE "code" = $1`,
-                [invitationCode],
-            );
-
-            if (codeResult.rows.length === 0) {
-                return;
-            }
-
-            const codeId = codeResult.rows[0].id;
-
-            // 插入使用记录 + 更新计数
-            const usageId = crypto.randomUUID();
-            await pool.query(
-                `INSERT INTO "invitation_code_usage" ("id", "codeId", "userId", "email") VALUES ($1, $2, $3, $4)`,
-                [usageId, codeId, userId, userEmail],
-            );
-            await pool.query(
-                `UPDATE "invitation_code" SET "uses" = "uses" + 1 WHERE "id" = $1`,
-                [codeId],
-            );
-
-            invalidateInvitationCodeCache();
         }),
     },
 })

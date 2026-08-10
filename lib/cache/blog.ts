@@ -7,6 +7,7 @@ import {
 import { pool } from "@/lib/db";
 import { CACHE_TAGS, getBlogPostTag } from "./tags";
 import { CACHE_KEYS } from "./keys";
+import { sanitizeBlogHtml } from "@/lib/security/html";
 
 // ─── 获取已发布文章列表（公开页面用，迁移到 Cache Components） ─────
 export async function getPublishedPosts() {
@@ -54,7 +55,8 @@ export async function getPublishedPostBySlug(slug: string) {
          WHERE bp.slug = $1 AND bp.status = 'published'`,
         [slug],
     );
-    return result.rows[0] || null;
+    const post = result.rows[0];
+    return post ? { ...post, content: sanitizeBlogHtml(post.content) } : null;
 }
 
 // ─── 按 slug 获取文章元数据（公开页面用，迁移到 Cache Components） ──

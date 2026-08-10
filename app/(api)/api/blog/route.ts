@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { headers } from "next/headers";
 import { invalidateBlogCache, getAdminBlogPosts } from "@/lib/cache";
+import { sanitizeBlogHtml } from "@/lib/security/html";
 
 // ─── GET /api/blog — 获取文章列表 ──────────────────────────
 export async function GET(request: NextRequest) {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
         `INSERT INTO blog_posts (title, slug, content, excerpt, cover_image, status, author_id, published_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id, slug`,
-        [title.trim(), slug, content || "", excerpt || null, cover_image || null, postStatus, session.user.id, publishedAt],
+        [title.trim(), slug, sanitizeBlogHtml(content), excerpt || null, cover_image || null, postStatus, session.user.id, publishedAt],
     );
 
     invalidateBlogCache(result.rows[0].slug);

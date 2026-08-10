@@ -28,7 +28,7 @@ export async function verifyCapToken(token: unknown): Promise<CapVerificationRes
         return { success: true };
     }
 
-    if (typeof token !== "string" || !token.trim()) {
+    if (typeof token !== "string" || !token.trim() || token.length > 4_096) {
         return {
             success: false,
             message: "请先完成安全验证",
