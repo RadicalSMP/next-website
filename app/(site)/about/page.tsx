@@ -36,14 +36,6 @@ export default function AboutPage() {
             <br />
             标语标语标语标语标语。
           </h2>
-          <div className="mt-8 flex justify-end">
-            <a
-              href="#"
-              className="text-white underline underline-offset-4 hover:text-gray-300 transition-colors"
-            >
-
-            </a>
-          </div>
         </div>
       </section>
 

@@ -27,6 +27,7 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   async headers() {
     return [{
       source: "/:path*",

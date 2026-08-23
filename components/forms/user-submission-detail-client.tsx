@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { FormResponseFields } from "@/components/forms/form-response-fields";
 import { CapWidget, type CapWidgetHandle } from "@/components/cap-widget";
+import { CAPTCHA_DEVELOPMENT_TOKEN, CAPTCHA_DISABLED } from "@/lib/cap-config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -500,7 +501,8 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
     const [submitting, setSubmitting] = useState(false);
     const [normalizedData, setNormalizedData] = useState<Record<string, unknown> | null>(null);
     const [localError, setLocalError] = useState<string | null>(null);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [captchaToken, setCaptchaToken] = useState<string | null>(CAPTCHA_DISABLED ? CAPTCHA_DEVELOPMENT_TOKEN : null);
     const startTimeRef = useRef(Date.now());
     const capWidgetRef = useRef<CapWidgetHandle>(null);
     const request = detail.activeRequest;
@@ -524,10 +526,21 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
             after: formatValue(values[field.key], field),
         })), [detail.submission.data, editableFields, values]);
 
-    const openConfirmation = () => {
+    const focusRevisionField = (fieldKey?: string) => {
+        if (!fieldKey) return;
+        const element = document.getElementById(`revision-field-${fieldKey}`)
+            ?? document.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
+        if (element instanceof HTMLElement) element.focus();
+    };
+
+    const openConfirmation = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
         if (unavailableReason) return;
+        setFieldErrors({});
         const validation = validateSubmissionValues(detail.submission.fields, values);
         if (!validation.ok) {
+            setFieldErrors({ [validation.fieldKey]: validation.error });
+            requestAnimationFrame(() => focusRevisionField(validation.fieldKey));
             toast.error(validation.error);
             return;
         }
@@ -554,7 +567,7 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
                     captchaToken,
                 }),
             });
-            const payload = await response.json().catch(() => ({})) as { error?: string };
+            const payload = await response.json().catch(() => ({})) as { error?: string; fieldKey?: string; code?: string };
             if (!response.ok) {
                 capWidgetRef.current?.reset();
                 let message = payload.error || "补交失败，请稍后重试";
@@ -563,6 +576,11 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
                 if (response.status === 404) message = "提交结果或补交请求不存在";
                 if (response.status === 409) message = "补交请求已完成、取消或发生冲突";
                 if (response.status === 410) message = "补交请求已过期";
+                if (payload.fieldKey) {
+                    setFieldErrors({ [payload.fieldKey]: message });
+                    setConfirmOpen(false);
+                    requestAnimationFrame(() => focusRevisionField(payload.fieldKey));
+                }
                 toast.error(message);
                 if ([401, 403, 404, 409, 410].includes(response.status)) {
                     setLocalError(message);
@@ -632,26 +650,40 @@ function RevisionView({ detail }: { detail: UserSubmissionDetail }) {
                         <h2 id="revision-fields-title" className="text-xl font-semibold">修改回答</h2>
                         <p className="mt-1 text-sm text-muted-foreground">只读字段会保留原回答，提交前可核对所有变更。</p>
                     </div>
-                    <div className="space-y-6">
+                    <form className="space-y-6" onSubmit={openConfirmation} noValidate>
+                        {Object.values(fieldErrors)[0] && (
+                            <div role="alert" aria-live="polite" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                                {Object.values(fieldErrors)[0]}
+                            </div>
+                        )}
                         <FormResponseFields
                             fields={detail.submission.fields}
                             values={values}
-                            onValueChange={(fieldKey, value) => setValues((current) => ({ ...current, [fieldKey]: value }))}
+                            onValueChange={(fieldKey, value) => {
+                                setValues((current) => ({ ...current, [fieldKey]: value }));
+                                setFieldErrors((current) => {
+                                    if (!current[fieldKey]) return current;
+                                    const next = { ...current };
+                                    delete next[fieldKey];
+                                    return next;
+                                });
+                            }}
                             idPrefix="revision-field"
                             editableFieldKeys={editableFieldKeys}
                             disabled={submitting}
+                            errors={fieldErrors}
                         />
                         <Separator />
                         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                             <Button variant="outline" asChild>
                                 <Link href={`/forms/submissions/${detail.submission.id}`}>取消</Link>
                             </Button>
-                            <Button onClick={openConfirmation} disabled={submitting}>
+                            <Button type="submit" disabled={submitting}>
                                 <CheckCircle2 aria-hidden="true" />
                                 核对并提交
                             </Button>
                         </div>
-                    </div>
+                    </form>
                 </section>
             )}
 

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { requestPasswordReset } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -17,7 +17,9 @@ export default function ForgotPassword() {
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (loading) return;
         await requestPasswordReset({
             email,
             redirectTo: "/reset-password",
@@ -37,7 +39,7 @@ export default function ForgotPassword() {
 
     return (
         <AuthShell title="找回账户访问权" description="输入注册邮箱，我们会发送重置链接，帮助你重新设置登录密码。">
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl motion-reduce:animate-none">
                 <CardHeader>
                     <CardTitle className="text-lg md:text-xl">忘记密码</CardTitle>
                     <CardDescription className="text-xs md:text-sm">
@@ -55,13 +57,16 @@ export default function ForgotPassword() {
                             </p>
                         </div>
                     ) : (
-                        <div className="grid gap-4">
+                        <form className="grid gap-4" onSubmit={handleSubmit}>
                             <div className="grid gap-2">
                                 <Label htmlFor="email">电子邮箱</Label>
                                 <Input
                                     id="email"
+                                    name="email"
                                     type="email"
-                                    placeholder="dk_iw@radicalsmp.org"
+                                    placeholder="例如：name@example.com"
+                                    autoComplete="email"
+                                    spellCheck={false}
                                     required
                                     onChange={(e) => setEmail(e.target.value)}
                                     value={email}
@@ -71,7 +76,6 @@ export default function ForgotPassword() {
                                 type="submit"
                                 className="w-full"
                                 disabled={loading || !email}
-                                onClick={handleSubmit}
                             >
                                 {loading ? (
                                     <Loader2 size={16} className="animate-spin" />
@@ -79,7 +83,7 @@ export default function ForgotPassword() {
                                     "发送重置链接"
                                 )}
                             </Button>
-                        </div>
+                        </form>
                     )}
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">

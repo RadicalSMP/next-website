@@ -1,6 +1,7 @@
 "use client"
 
 import { LogOut, User, Settings, LayoutDashboard } from "lucide-react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -38,25 +39,15 @@ export function UserAvatar({ className, size = "default" }: UserAvatarProps) {
     }
   }
 
-  const handleSignIn = () => {
-    router.push("/sign-in")
-  }
-
-  // 如果正在加载，不显示任何内容
   if (isPending) {
-    return null
+    return <span className="h-8 w-14 animate-pulse rounded-md bg-muted motion-reduce:animate-none" aria-hidden="true" />
   }
 
   // 如果未登录，显示登录按钮
   if (!session?.user) {
     return (
-      <Button 
-        variant="default" 
-        size="sm" 
-        onClick={handleSignIn}
-        className={className}
-      >
-        登录
+      <Button variant="default" size="sm" asChild className={className}>
+        <Link href="/sign-in">登录</Link>
       </Button>
     )
   }
@@ -85,7 +76,7 @@ export function UserAvatar({ className, size = "default" }: UserAvatarProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full" aria-label={`打开 ${displayName} 的账户菜单`}>
           <Avatar size={size} className={className}>
             <AvatarImage 
               src={user.image || undefined} 
@@ -105,20 +96,26 @@ export function UserAvatar({ className, size = "default" }: UserAvatarProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/profile")}>
-          <User className="mr-2 h-4 w-4" />
-          <span>个人资料</span>
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <User className="mr-2 h-4 w-4" aria-hidden="true" />
+            <span>个人资料</span>
+          </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/settings")}>
-          <Settings className="mr-2 h-4 w-4" />
-          <span>设置</span>
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings className="mr-2 h-4 w-4" aria-hidden="true" />
+            <span>设置</span>
+          </Link>
         </DropdownMenuItem>
         {(user as Record<string, unknown>).role === "admin" && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              <span>管理后台</span>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard">
+                <LayoutDashboard className="mr-2 h-4 w-4" aria-hidden="true" />
+                <span>管理后台</span>
+              </Link>
             </DropdownMenuItem>
           </>
         )}
@@ -127,7 +124,7 @@ export function UserAvatar({ className, size = "default" }: UserAvatarProps) {
           variant="destructive"
           onClick={handleSignOut}
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
           <span>退出登录</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

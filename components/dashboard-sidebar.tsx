@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { org } from "@/app/resource/content";
 import {
     Sidebar,
@@ -16,6 +19,12 @@ import { dashboard_items } from "@/app/resource/content";
 import { RiArrowLeftLine } from "react-icons/ri";
 
 export function DashboardSidebar() {
+    const pathname = usePathname();
+
+    const isActive = (href: string) => href === "/dashboard"
+        ? pathname === href
+        : pathname === href || pathname.startsWith(`${href}/`);
+
     return (
         <Sidebar>
             <SidebarHeader>
@@ -35,9 +44,9 @@ export function DashboardSidebar() {
                                     const IconComponent = item.icon;
                                     return (
                                         <SidebarMenuItem key={index}>
-                                            <SidebarMenuButton asChild>
-                                                <Link href={item.href}>
-                                                    <IconComponent className="size-4" />
+                                            <SidebarMenuButton asChild isActive={isActive(item.href)}>
+                                                <Link href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
+                                                    <IconComponent className="size-4" aria-hidden="true" />
                                                     <span>{item.title}</span>
                                                 </Link>
                                             </SidebarMenuButton>
@@ -55,7 +64,7 @@ export function DashboardSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild>
                             <Link href="/">
-                                <RiArrowLeftLine className="size-4" />
+                                <RiArrowLeftLine className="size-4" aria-hidden="true" />
                                 <span>返回主站</span>
                             </Link>
                         </SidebarMenuButton>

@@ -154,14 +154,13 @@
   }
 }
 
-/* 隐藏滚动条 */
-/* 对于 Chrome & Edge & Safari */
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  display: none;
-}
-/* 对于 Firefox */
-html,
-body {
-  scrollbar-width: none;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

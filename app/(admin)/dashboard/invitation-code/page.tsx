@@ -16,6 +16,15 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
@@ -40,6 +49,7 @@ import {
     ChevronRight,
     TicketCheck,
 } from "lucide-react";
+import { getClientErrorMessage, getResponseError } from "@/lib/client-response";
 
 /* ─── 类型定义 ─────────────────────────────────────────────── */
 
@@ -69,14 +79,17 @@ export default function InvitationCodePage() {
     const [codes, setCodes] = useState<InvitationCode[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [deleteCodeId, setDeleteCodeId] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     const fetchCodes = useCallback(async () => {
         try {
             const res = await fetch("/api/invitation-code");
+            if (!res.ok) throw new Error(await getResponseError(res, "获取邀请码列表失败"));
             const data = await res.json();
             setCodes(data.codes || []);
-        } catch {
-            toast.error("获取邀请码列表失败");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "获取邀请码列表失败"));
         } finally {
             setLoading(false);
         }
@@ -87,13 +100,17 @@ export default function InvitationCodePage() {
     }, [fetchCodes]);
 
     const handleDelete = async (id: string) => {
-        if (!confirm("确认删除此邀请码？关联的使用记录也会被删除。")) return;
+        setDeleting(true);
         try {
-            await fetch(`/api/invitation-code?id=${id}`, { method: "DELETE" });
-            toast.success("已删除");
-            fetchCodes();
-        } catch {
-            toast.error("删除失败");
+            const response = await fetch(`/api/invitation-code?id=${id}`, { method: "DELETE" });
+            if (!response.ok) throw new Error(await getResponseError(response, "删除邀请码失败"));
+            await fetchCodes();
+            setDeleteCodeId(null);
+            toast.success("邀请码已删除");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "删除邀请码失败"));
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -176,15 +193,18 @@ export default function InvitationCodePage() {
                                             <TableCell>
                                                 {hasUsages ? (
                                                     <button
-                                                        className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                                                        type="button"
+                                                        className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                        aria-label={isExpanded ? "收起使用记录" : "展开使用记录"}
+                                                        aria-expanded={isExpanded}
                                                         onClick={() =>
                                                             setExpandedId(isExpanded ? null : code.id)
                                                         }
                                                     >
                                                         {isExpanded ? (
-                                                            <ChevronDown className="size-4" />
+                                                            <ChevronDown className="size-4" aria-hidden="true" />
                                                         ) : (
-                                                            <ChevronRight className="size-4" />
+                                                            <ChevronRight className="size-4" aria-hidden="true" />
                                                         )}
                                                     </button>
                                                 ) : null}
@@ -203,9 +223,10 @@ export default function InvitationCodePage() {
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     className="size-7"
+                                                                    aria-label="复制邀请码"
                                                                     onClick={() => copyToClipboard(code.code)}
                                                                 >
-                                                                    <Copy className="size-3.5" />
+                                                                    <Copy className="size-3.5" aria-hidden="true" />
                                                                 </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>复制邀请码</TooltipContent>
@@ -280,9 +301,10 @@ export default function InvitationCodePage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="size-8 text-destructive hover:text-destructive"
-                                                    onClick={() => handleDelete(code.id)}
+                                                    onClick={() => setDeleteCodeId(code.id)}
+                                                    aria-label={`删除邀请码 ${code.code}`}
                                                 >
-                                                    <Trash2 className="size-4" />
+                                                    <Trash2 className="size-4" aria-hidden="true" />
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -326,6 +348,24 @@ export default function InvitationCodePage() {
                     </TableBody>
                 </Table>
             </div>
+            <AlertDialog open={Boolean(deleteCodeId)} onOpenChange={(open) => !deleting && !open && setDeleteCodeId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除邀请码</AlertDialogTitle>
+                        <AlertDialogDescription>关联的使用记录也会被删除，此操作不可撤销。</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+                        <Button
+                            variant="destructive"
+                            disabled={deleting || !deleteCodeId}
+                            onClick={() => deleteCodeId && handleDelete(deleteCodeId)}
+                        >
+                            {deleting ? "删除中…" : "确认删除"}
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
@@ -360,8 +400,7 @@ function CreateCodeDialog({ onCreated }: { onCreated: () => void }) {
             });
 
             if (!res.ok) {
-                const data = await res.json();
-                toast.error(data.error || "创建失败");
+                toast.error(await getResponseError(res, "创建失败"));
                 return;
             }
 

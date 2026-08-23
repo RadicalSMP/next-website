@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialog, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
@@ -18,6 +18,8 @@ import {
     RiMoreLine, RiAddLine, RiEditLine, RiDeleteBinLine,
     RiEyeLine, RiDraftLine, RiCheckLine,
 } from "react-icons/ri";
+import { toast } from "sonner";
+import { getClientErrorMessage, getResponseError } from "@/lib/client-response";
 
 interface Post {
     id: string;
@@ -63,6 +65,7 @@ export default function BlogManagePage() {
             if (statusFilter) params.set("status", statusFilter);
 
             const res = await fetch(`/api/blog?${params}`);
+            if (!res.ok) throw new Error(await getResponseError(res, "获取文章列表失败"));
             const data = await res.json();
             setPosts(data.posts || []);
             setTotal(data.total || 0);
@@ -82,14 +85,16 @@ export default function BlogManagePage() {
         setActionLoading(true);
         try {
             const newStatus = currentStatus === "published" ? "draft" : "published";
-            await fetch(`/api/blog/${postId}`, {
+            const response = await fetch(`/api/blog/${postId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus }),
             });
+            if (!response.ok) throw new Error(await getResponseError(response, "更新文章状态失败"));
             await fetchPosts();
-        } catch (err) {
-            console.error("更新状态失败:", err);
+            toast.success(newStatus === "published" ? "文章已发布" : "文章已转为草稿");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "更新文章状态失败"));
         } finally {
             setActionLoading(false);
         }
@@ -98,11 +103,13 @@ export default function BlogManagePage() {
     const handleDelete = async () => {
         setActionLoading(true);
         try {
-            await fetch(`/api/blog/${deletePostId}`, { method: "DELETE" });
+            const response = await fetch(`/api/blog/${deletePostId}`, { method: "DELETE" });
+            if (!response.ok) throw new Error(await getResponseError(response, "删除文章失败"));
             setDeleteDialogOpen(false);
             await fetchPosts();
-        } catch (err) {
-            console.error("删除文章失败:", err);
+            toast.success("文章已删除");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "删除文章失败"));
         } finally {
             setActionLoading(false);
         }
@@ -286,13 +293,13 @@ export default function BlogManagePage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>取消</AlertDialogCancel>
-                        <AlertDialogAction
+                        <Button
                             variant="destructive"
                             onClick={handleDelete}
                             disabled={actionLoading}
                         >
                             {actionLoading ? "处理中..." : "确认删除"}
-                        </AlertDialogAction>
+                        </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

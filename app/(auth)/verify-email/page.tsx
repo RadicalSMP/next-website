@@ -13,8 +13,9 @@ import { Loader2, MailCheck, RefreshCw } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { translateErrorMessage } from "@/lib/utils";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
+import Link from "next/link";
 
 const COOLDOWN_KEY = "verify-email-cooldown-until";
 const COOLDOWN_SECONDS = 60;
@@ -34,7 +35,6 @@ function getRemaining(): number {
 function VerifyEmailContent() {
     const searchParams = useSearchParams();
     const email = searchParams.get("email");
-    const router = useRouter();
     const [resending, setResending] = useState(false);
     const [countdown, setCountdown] = useState(0);
 
@@ -69,7 +69,7 @@ function VerifyEmailContent() {
         setResending(true);
         const { error } = await authClient.sendVerificationEmail({
             email,
-            callbackURL: "/dashboard",
+            callbackURL: "/forms",
         });
         setResending(false);
 
@@ -82,7 +82,7 @@ function VerifyEmailContent() {
     };
 
     return (
-        <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
+        <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl motion-reduce:animate-none">
             <CardHeader className="text-center">
                 <div className="flex justify-center mb-2">
                     <div className="rounded-full border bg-background/80 p-3 shadow-sm">
@@ -127,9 +127,9 @@ function VerifyEmailContent() {
 
                     <Button
                         variant="outline"
-                        onClick={() => router.push("/sign-in")}
+                        asChild
                     >
-                        返回登录
+                        <Link href="/sign-in">返回登录</Link>
                     </Button>
 
                     <p className="text-xs text-center text-muted-foreground">

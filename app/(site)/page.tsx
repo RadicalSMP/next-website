@@ -25,20 +25,20 @@ const sections = [
     {
         icon: ShieldCheck,
         title: "可追踪的管理流程",
-        desc: "入服、公告、表单和后台管理逐步收拢到网站中，后续会继续补齐更多自助能力。",
+        desc: "入服、公告、表单和后台管理集中在网站中，申请与处理状态都有明确记录。",
     },
 ];
 
 const timeline = [
-    { title: "提交入服申请", desc: "填写基础信息与游玩偏好，部分字段后续会根据邀请码自动补全。" },
-    { title: "等待人工审核", desc: "管理员会结合申请内容和社区状态处理，当前文案可后续替换为正式规则。" },
+    { title: "提交入服申请", desc: "从公开表单中填写基础信息与游玩偏好，并确认提交内容。" },
+    { title: "等待人工审核", desc: "管理员会结合申请内容和社区接纳能力进行审核，处理结果会通过网站或邮件通知。" },
     { title: "加入社区频道", desc: "通过后进入 QQ 群或其他频道，获取服务器地址、白名单与活动信息。" },
 ];
 
 const updates = [
-    "入服表单与审核后台正在完善中",
-    "博客区将用于沉淀公告、活动记录和技术文章",
-    "名人堂页面已开放，后续补充更多社区成员资料",
+    "公开表单用于提交入服申请及社区事务",
+    "博客记录服务器公告、活动与技术经验",
+    "冥人唐展示社区成员与他们参与的服务器工作",
 ];
 
 export default function Home() {
@@ -47,7 +47,7 @@ export default function Home() {
             <section className="relative min-h-[calc(100vh-5rem)] px-4 pb-12 pt-8 sm:px-6 lg:px-8">
                 <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,rgba(34,197,94,0.16),transparent_30%),radial-gradient(circle_at_82%_22%,rgba(14,165,233,0.14),transparent_28%),linear-gradient(180deg,transparent,rgba(0,0,0,0.03))] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(34,197,94,0.18),transparent_28%),radial-gradient(circle_at_78%_18%,rgba(14,165,233,0.16),transparent_30%),linear-gradient(180deg,transparent,rgba(255,255,255,0.04))]" />
                 <div className="absolute inset-x-0 top-16 -z-10 h-80 opacity-70 blur-3xl">
-                    <div className="mx-auto h-full max-w-5xl animate-[pulse_8s_ease-in-out_infinite] bg-[conic-gradient(from_120deg,rgba(132,204,22,0.18),rgba(14,165,233,0.12),rgba(244,244,245,0.1),rgba(132,204,22,0.18))]" />
+                    <div className="mx-auto h-full max-w-5xl animate-[pulse_8s_ease-in-out_infinite] bg-[conic-gradient(from_120deg,rgba(132,204,22,0.18),rgba(14,165,233,0.12),rgba(244,244,245,0.1),rgba(132,204,22,0.18))] motion-reduce:animate-none" />
                 </div>
 
                 <div className="mx-auto grid min-h-[calc(100vh-9rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[1.06fr_0.94fr]">
@@ -93,8 +93,8 @@ export default function Home() {
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                             <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                                <p className="text-sm text-white/70">当前状态</p>
-                                <p className="mt-1 text-2xl font-semibold">社区系统建设中</p>
+                                <p className="text-sm text-white/70">社区方向</p>
+                                <p className="mt-1 text-2xl font-semibold">长期生存与协作共建</p>
                             </div>
                         </div>
                     </div>
@@ -116,10 +116,10 @@ export default function Home() {
             <section className="px-4 py-20 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-6xl">
                     <div className="max-w-2xl">
-                        <p className="text-sm font-medium text-lime-600 dark:text-lime-400">社区特性</p>
+                        <p className="text-sm font-medium text-lime-700 dark:text-lime-400">社区特性</p>
                         <h2 className="mt-3 text-3xl font-semibold tracking-normal sm:text-4xl">把服务器当作长期项目经营</h2>
                         <p className="mt-4 text-muted-foreground">
-                            首页先补齐基础内容框架，后续可以把这些占位说明替换为正式规则、活动介绍和服务器历史。
+                            服务器重视稳定参与、清晰规则与成员之间的协作，让建筑、红石、活动和内容创作都能持续积累。
                         </p>
                     </div>
 
@@ -141,10 +141,10 @@ export default function Home() {
             <section className="bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
                 <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr]">
                     <div>
-                        <p className="text-sm font-medium text-sky-600 dark:text-sky-400">加入流程</p>
+                        <p className="text-sm font-medium text-sky-700 dark:text-sky-400">加入流程</p>
                         <h2 className="mt-3 text-3xl font-semibold tracking-normal sm:text-4xl">从申请到入服，流程保持可追踪</h2>
                         <p className="mt-4 text-muted-foreground">
-                            当前流程文案是占位版本，后续可以接入真实审核说明、白名单规则和成员手册。
+                            申请、审核与结果通知通过表单系统衔接，减少信息遗漏，也便于成员查看自己的提交记录。
                         </p>
                     </div>
                     <div className="space-y-3">

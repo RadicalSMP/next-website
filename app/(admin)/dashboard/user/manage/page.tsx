@@ -12,7 +12,7 @@ import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialog, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
@@ -23,6 +23,8 @@ import {
     RiCheckLine, RiDeleteBinLine, RiSearchLine, RiRefreshLine,
 } from "react-icons/ri";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { getClientErrorMessage, getResponseError } from "@/lib/client-response";
 
 // ─── 类型 ────────────────────────────────────────────────────
 interface User {
@@ -115,14 +117,16 @@ export default function UserManagePage() {
     const handleSetRole = async (userId: string, role: "admin" | "user") => {
         setActionLoading(true);
         try {
-            await fetch(`/api/users/${userId}`, {
+            const response = await fetch(`/api/users/${userId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "setRole", role }),
             });
+            if (!response.ok) throw new Error(await getResponseError(response, "设置角色失败"));
             await fetchUsers();
-        } catch (err) {
-            console.error("设置角色失败:", err);
+            toast.success(role === "admin" ? "已设为管理员" : "已设为普通用户");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "设置角色失败"));
         } finally {
             setActionLoading(false);
         }
@@ -131,7 +135,7 @@ export default function UserManagePage() {
     const handleBan = async () => {
         setActionLoading(true);
         try {
-            await fetch(`/api/users/${banUserId}`, {
+            const response = await fetch(`/api/users/${banUserId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -140,11 +144,13 @@ export default function UserManagePage() {
                     ...(banDuration > 0 ? { banExpiresIn: banDuration } : {}),
                 }),
             });
+            if (!response.ok) throw new Error(await getResponseError(response, "封禁用户失败"));
             setBanDialogOpen(false);
             setBanReason("");
             await fetchUsers();
-        } catch (err) {
-            console.error("封禁用户失败:", err);
+            toast.success("用户已封禁");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "封禁用户失败"));
         } finally {
             setActionLoading(false);
         }
@@ -153,14 +159,16 @@ export default function UserManagePage() {
     const handleUnban = async (userId: string) => {
         setActionLoading(true);
         try {
-            await fetch(`/api/users/${userId}`, {
+            const response = await fetch(`/api/users/${userId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "unban" }),
             });
+            if (!response.ok) throw new Error(await getResponseError(response, "解封用户失败"));
             await fetchUsers();
-        } catch (err) {
-            console.error("解封用户失败:", err);
+            toast.success("用户已解封");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "解封用户失败"));
         } finally {
             setActionLoading(false);
         }
@@ -169,11 +177,13 @@ export default function UserManagePage() {
     const handleDelete = async () => {
         setActionLoading(true);
         try {
-            await fetch(`/api/users/${deleteUserId}`, { method: "DELETE" });
+            const response = await fetch(`/api/users/${deleteUserId}`, { method: "DELETE" });
+            if (!response.ok) throw new Error(await getResponseError(response, "删除用户失败"));
             setDeleteDialogOpen(false);
             await fetchUsers();
-        } catch (err) {
-            console.error("删除用户失败:", err);
+            toast.success("用户已删除");
+        } catch (error) {
+            toast.error(getClientErrorMessage(error, "删除用户失败"));
         } finally {
             setActionLoading(false);
         }
@@ -432,13 +442,13 @@ export default function UserManagePage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>取消</AlertDialogCancel>
-                        <AlertDialogAction
+                        <Button
                             variant="destructive"
                             onClick={handleDelete}
                             disabled={actionLoading}
                         >
                             {actionLoading ? "处理中..." : "确认删除"}
-                        </AlertDialogAction>
+                        </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

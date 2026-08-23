@@ -11,8 +11,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { useState, useMemo, useRef, useSyncExternalStore } from "react";
+import { useState, useMemo, useRef, useSyncExternalStore, type FormEvent } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Loader2, X, Check, Circle, TicketCheck } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { RiArrowRightUpBoxLine } from "react-icons/ri";
 import { AuthShell } from "@/components/auth-shell";
 import { CapWidget, type CapWidgetHandle } from "@/components/cap-widget";
+import { CAPTCHA_DEVELOPMENT_TOKEN, CAPTCHA_DISABLED } from "@/lib/cap-config";
 
 /** 密码强度规则 */
 const PASSWORD_RULES = [
@@ -89,8 +91,9 @@ export default function SignUp() {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(CAPTCHA_DISABLED ? CAPTCHA_DEVELOPMENT_TOKEN : null);
     const capWidgetRef = useRef<CapWidgetHandle>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
 
     const locationSearch = useSyncExternalStore(
         subscribeToLocationChange,
@@ -116,6 +119,16 @@ export default function SignUp() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+                toast.error("头像仅支持 JPEG、PNG 或 WebP 格式");
+                e.target.value = "";
+                return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+                toast.error("头像文件不能超过 2 MB");
+                e.target.value = "";
+                return;
+            }
             setImage(file);
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -125,9 +138,52 @@ export default function SignUp() {
         }
     };
 
+    const clearImage = () => {
+        setImage(null);
+        setImagePreview(null);
+        if (imageInputRef.current) imageInputRef.current.value = "";
+    };
+
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (loading || !captchaToken) return;
+        if (!isPasswordValid) {
+            toast.error("密码不满足强度要求");
+            return;
+        }
+        if (password !== passwordConfirmation) {
+            toast.error("两次输入的密码不一致");
+            return;
+        }
+
+        await signUp.email({
+            email: effectiveEmail,
+            password,
+            name: username,
+            image: image ? await convertImageToBase64(image) : "",
+            callbackURL: "/forms",
+            fetchOptions: {
+                body: {
+                    invitationCode: effectiveInvitationCode.trim(),
+                    captchaToken,
+                },
+                onResponse: () => setLoading(false),
+                onRequest: () => setLoading(true),
+                onError: (ctx) => {
+                    capWidgetRef.current?.reset();
+                    toast.error(translateErrorMessage(ctx.error.message));
+                },
+                onSuccess: () => {
+                    toast.success("注册成功！请查看邮箱完成验证");
+                    router.push(`/verify-email?email=${encodeURIComponent(effectiveEmail)}`);
+                },
+            },
+        });
+    };
+
     return (
         <AuthShell title="创建社区账户" description="通过邀请码完成注册，并绑定后续用于审核、通知和身份识别的邮箱信息。">
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl">
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 rounded-lg border bg-background/82 shadow-2xl backdrop-blur-xl motion-reduce:animate-none">
                 <CardHeader>
                     <CardTitle className="text-lg md:text-xl">注册</CardTitle>
                     <CardDescription className="text-xs md:text-sm">
@@ -135,13 +191,16 @@ export default function SignUp() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid gap-4">
+                    <form className="grid gap-4" onSubmit={handleSubmit}>
                         <div className="grid gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="username">用户名</Label>
                                 <Input
-                                    id="first-name"
-                                    placeholder="Dk_Iw"
+                                    id="username"
+                                    name="username"
+                                    placeholder="例如：Dk_Iw"
+                                    autoComplete="username"
+                                    spellCheck={false}
                                     required
                                     onChange={(e) => {
                                         setUsername(e.target.value);
@@ -151,11 +210,14 @@ export default function SignUp() {
                             </div>
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
+                            <Label htmlFor="email">电子邮箱</Label>
                             <Input
                                 id="email"
+                                name="email"
                                 type="email"
-                                placeholder="dk_iw@radicalsmp.org"
+                                placeholder="例如：name@example.com"
+                                autoComplete="email"
+                                spellCheck={false}
                                 required
                                 onChange={(e) => {
                                     setEmail(e.target.value);
@@ -168,7 +230,10 @@ export default function SignUp() {
                             <Label htmlFor="password">密码</Label>
                             <Input
                                 id="password"
+                                name="password"
                                 type="password"
+                                required
+                                minLength={8}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="new-password"
@@ -223,7 +288,10 @@ export default function SignUp() {
                             <Label htmlFor="password_confirmation">确认密码</Label>
                             <Input
                                 id="password_confirmation"
+                                name="passwordConfirmation"
                                 type="password"
+                                required
+                                minLength={8}
                                 value={passwordConfirmation}
                                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                                 autoComplete="new-password"
@@ -234,34 +302,33 @@ export default function SignUp() {
                             )}
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="image">头像 (可选)</Label>
+                            <Label htmlFor="image">头像（可选）</Label>
                             <div className="flex items-end gap-4">
                                 {imagePreview && (
                                     <div className="relative w-16 h-16 rounded-sm overflow-hidden">
                                         <Image
                                             src={imagePreview}
-                                            alt="Profile preview"
-                                            layout="fill"
-                                            objectFit="cover"
+                                            alt="头像预览"
+                                            fill
+                                            sizes="64px"
+                                            className="object-cover"
                                         />
                                     </div>
                                 )}
                                 <div className="flex items-center gap-2 w-full">
                                     <Input
                                         id="image"
+                                        ref={imageInputRef}
+                                        name="image"
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp"
                                         onChange={handleImageChange}
                                         className="w-full"
                                     />
                                     {imagePreview && (
-                                        <X
-                                            className="cursor-pointer"
-                                            onClick={() => {
-                                                setImage(null);
-                                                setImagePreview(null);
-                                            }}
-                                        />
+                                        <Button type="button" variant="ghost" size="icon" onClick={clearImage} aria-label="清除头像">
+                                            <X aria-hidden="true" />
+                                        </Button>
                                     )}
                                 </div>
                             </div>
@@ -275,7 +342,10 @@ export default function SignUp() {
                             </Label>
                             <Input
                                 id="invitationCode"
-                                placeholder="请输入邀请码"
+                                name="invitationCode"
+                                placeholder="请输入邀请码…"
+                                autoComplete="off"
+                                spellCheck={false}
                                 required
                                 value={effectiveInvitationCode}
                                 onChange={(e) => setInvitationCode(e.target.value)}
@@ -287,43 +357,6 @@ export default function SignUp() {
                             type="submit"
                             className="w-full"
                             disabled={loading || !captchaToken || !isPasswordValid || password !== passwordConfirmation || !effectiveInvitationCode.trim()}
-                            onClick={async () => {
-                                if (!isPasswordValid) {
-                                    toast.error("密码不满足强度要求");
-                                    return;
-                                }
-                                if (password !== passwordConfirmation) {
-                                    toast.error("两次输入的密码不一致");
-                                    return;
-                                }
-                                await signUp.email({
-                                    email: effectiveEmail,
-                                    password,
-                                    name: `${username}`,
-                                    image: image ? await convertImageToBase64(image) : "",
-                                    callbackURL: "/dashboard",
-                                    fetchOptions: {
-                                        body: {
-                                            invitationCode: effectiveInvitationCode.trim(),
-                                            captchaToken,
-                                        },
-                                        onResponse: () => {
-                                            setLoading(false);
-                                        },
-                                        onRequest: () => {
-                                            setLoading(true);
-                                        },
-                                        onError: (ctx) => {
-                                            capWidgetRef.current?.reset();
-                                            toast.error(translateErrorMessage(ctx.error.message));
-                                        },
-                                        onSuccess: () => {
-                                            toast.success("注册成功！请查看邮箱完成验证");
-                                            router.push(`/verify-email?email=${encodeURIComponent(effectiveEmail)}`);
-                                        },
-                                    },
-                                });
-                            }}
                         >
                             {loading ? (
                                 <Loader2 size={16} className="animate-spin" />
@@ -331,15 +364,12 @@ export default function SignUp() {
                                 "创建账户"
                             )}
                         </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                router.push("/sign-in");
-                            }}
-                        >
-                            返回登录 <RiArrowRightUpBoxLine />
+                        <Button variant="outline" asChild>
+                            <Link href="/sign-in">
+                                返回登录 <RiArrowRightUpBoxLine aria-hidden="true" />
+                            </Link>
                         </Button>
-                    </div>
+                    </form>
                 </CardContent>
             </Card>
         </AuthShell>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
@@ -8,8 +8,9 @@ import { FormResponseFields } from "@/components/forms/form-response-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { buildSubmissionDefaults, type FormField } from "@/lib/forms";
+import { buildSubmissionDefaults, validateSubmissionValues, type FormField } from "@/lib/forms";
 import { CapWidget, type CapWidgetHandle } from "@/components/cap-widget";
+import { CAPTCHA_DEVELOPMENT_TOKEN, CAPTCHA_DISABLED } from "@/lib/cap-config";
 
 type FormData = {
     id: string;
@@ -63,7 +64,9 @@ export function FormFillClient({
 }: FormFillClientProps) {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(CAPTCHA_DISABLED ? CAPTCHA_DEVELOPMENT_TOKEN : null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const [values, setValues] = useState<Record<string, unknown>>(() => (
         initialForm ? buildSubmissionDefaults(initialForm.fields) : {}
     ));
@@ -72,13 +75,37 @@ export function FormFillClient({
 
     const updateValue = (key: string, value: unknown) => {
         setValues((prev) => ({ ...prev, [key]: value }));
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+    };
+
+    const focusField = (fieldKey?: string) => {
+        if (!fieldKey) return;
+        const element = document.getElementById(`form-field-${fieldKey}`)
+            ?? document.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
+        if (element instanceof HTMLElement) element.focus();
     };
 
     const submitLabel = useMemo(() => initialForm?.settings?.submitLabel || "提交表单", [initialForm]);
     const successMessage = useMemo(() => initialForm?.settings?.successMessage || "提交成功，感谢你的填写。", [initialForm]);
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
         if (!initialForm || mode === "preview" || !captchaToken) return;
+
+        setFieldErrors({});
+        setSubmitError(null);
+        const validation = validateSubmissionValues(initialForm.fields, values);
+        if (!validation.ok) {
+            setSubmitError(validation.error);
+            setFieldErrors({ [validation.fieldKey]: validation.error });
+            requestAnimationFrame(() => focusField(validation.fieldKey));
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -87,7 +114,7 @@ export function FormFillClient({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    data: values,
+                    data: validation.value,
                     fingerprint: generateFingerprint(),
                     duration,
                     captchaToken,
@@ -96,13 +123,20 @@ export function FormFillClient({
             const data = await res.json();
             if (!res.ok) {
                 capWidgetRef.current?.reset();
-                toast.error(data.error || "提交失败");
+                const message = data.error || "提交失败";
+                setSubmitError(message);
+                if (data.fieldKey && typeof data.fieldKey === "string") {
+                    setFieldErrors({ [data.fieldKey]: message });
+                    requestAnimationFrame(() => focusField(data.fieldKey));
+                }
+                toast.error(message);
                 return;
             }
             setSubmitted(true);
             toast.success("提交成功");
         } catch {
             capWidgetRef.current?.reset();
+            setSubmitError("提交失败，请稍后重试");
             toast.error("提交失败，请稍后重试");
         } finally {
             setSubmitting(false);
@@ -154,12 +188,18 @@ export function FormFillClient({
                 {initialForm.settings?.introText && <p className="mt-4 text-sm text-muted-foreground">{initialForm.settings.introText}</p>}
             </div>
             <Separator className="mb-8" />
-            <div className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+                {submitError && (
+                    <div id="form-errors" role="alert" aria-live="polite" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                        {submitError}
+                    </div>
+                )}
                 <FormResponseFields
                     fields={initialForm.fields}
                     values={values}
                     onValueChange={updateValue}
                     idPrefix="form-field"
+                    errors={fieldErrors}
                 />
                 {mode === "submit" && (
                     <CapWidget ref={capWidgetRef} onTokenChange={setCaptchaToken} />
@@ -169,12 +209,12 @@ export function FormFillClient({
                         className="w-full"
                         size="lg"
                         disabled={submitting || mode === "preview" || !captchaToken}
-                        onClick={handleSubmit}
+                        type={mode === "preview" ? "button" : "submit"}
                     >
                         {submitting ? <Loader2 className="size-4 animate-spin" /> : mode === "preview" ? previewLabel : submitLabel}
                     </Button>
                 </div>
-            </div>
+            </form>
         </div>
     );
 }
